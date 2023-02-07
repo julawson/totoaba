@@ -1,30 +1,59 @@
 ---
-title: "README"
+title: "READ-ME"
 author: "Julia Lawson, UCSB"
 date: "2023-02-07"
 output: html_document
 ---
 
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+```{r libraries}
+
+library(here)
+library(tidyverse)
+library(janitor)
+
 ```
 
-## R Markdown
+```{r data}
 
-This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+##Loading Data from 't' former Repo###
 
-When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+# Parameters from several sources noted in the file.
+dat_par = read_csv(here("data", "andrew", "dat_pars.csv")) %>% 
+  clean_names()
 
-```{r cars}
-summary(cars)
+# Prices and characteristics of buche in end markets. Several sources.
+dat_p = read_csv(here("data", "andrew", "dat_p.csv"))
+
+#  Marginal mortalities per month in aquaculture from Cygnus Ocean Farms (2017).
+dat_aqm = read_csv(here("data", "andrew", "dat_aqm.csv"))
+
+#  Biomass at age for 2017 from INAPESCA (2018).
+dat_bio = read_csv(here("data", "andrew", "dat_bio.csv"))
+
+#  Length-weight/age relationships from INAPESCA (2020), wild stock.
+#  Weight in kg, length in cm.
+dat_lw = read_csv(here("data", "andrew", "dat_inpesca_bio.csv"))
+
+#  Mortality in aquaculture by months reared.
+dat_aqm = read_csv(here("data", "andrew", "dat_aqm.csv")) %>% 
+  mutate(years = (a_months/12)) %>% 
+  mutate_if(is.numeric, round, 2)
+
 ```
 
-## Including Plots
+```{r size to buche}
 
-You can also embed plots, for example:
+### Wild Stock ###
 
-```{r pressure, echo=FALSE}
-plot(pressure)
+# Wet buche is 0.0161% of the total wet weight (INPESCA 2020) (wild-caught).
+
+buche_ww <- dat_lw %>% 
+  mutate(buche_kg = weight*0.0161) %>% 
+  mutate(buche_g = buche_kg*1000)
+
+# Wet buche is 0.0135% of the fish body wet weight (Gonzalez-Felix et al. 2021) (aquaculture raised).
+
+
 ```
 
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+
