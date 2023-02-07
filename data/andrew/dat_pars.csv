@@ -1,0 +1,51 @@
+Name (Long),Name (Short),Function,Mid,Low,High,Units,Module,Source
+Start Year,t_0,,0,0,0,Years,All,
+End Year,t_i,,14,14,14,Years,All,
+Start Age,a_0,,0.5,0.5,0.5,Years,All,INAPESCA (2018)
+End Age,a_i,,26.5,26.5,26.5,Years,All,INAPESCA (2018)
+Length (Infinity),linf_al,VBGF,206.3,206.3,206.3,Centimeters,All,INAPESCA (2018)
+Catabolic Constant (k),k_al,VBGF,0.1743,0.1743,0.1743,Years (Inverse),All,INAPESCA (2018)
+Length (time 0),t0_al,VBGF,-0.3,-0.3,-0.3,Years,All,INAPESCA (2018)
+a ,a_lw,Length-Weight,0.000005,0.000005,0.000005,,All,INAPESCA (2018)
+b,b_lw,Length-Weight,3.0635,3.0635,3.0635,,All,INAPESCA (2018)
+Yield (Wet to Buche),by1,Price Matrix,0.0161,0.0161,0.0161,Proportion,Market,"UABC, Goto et al. (2019)"
+Yield (Buche to Dry Buche),by2,Price Matrix,0.31,0.31,0.31,Proportion,Market,"UABC, Goto et al. (2019)"
+Value Lost,loss,Price Matrix,0.1,0.1,0.1,Proportion,Market,"Ex-Vessel Price Data (Cisneros et al. in press), Final Sale Price Data (EIA 2018)"
+Demand Shift,dem,Price Matrix,1,1,1,Proportion,Market,
+Subsitutability,sub,Price Matrix,1,1,1,Proportion,Market,
+Aquaculture Switch,switch_aq,Price Matrix,0,0,0,Binary,Aquaculture,
+Cages,c_cages,Aquaculture Production,0,1,100,Count,Aquaculture,
+Stocking Density,dens,Aquaculture Production,20,10,30,kg/m^3,Aquaculture,"Innovasea, HSWRI pers. comm."
+Cage Size ,cage_size,Aquaculture Production,10000,10000,10000,m^3,Aquaculture,Innovasea
+First Saleable Size ,sale_size,Aquaculture Production,2,1,3,kg,Aquaculture,"pers. comm. GMG, Earth Ocean Farms (2019)"
+Yield (Wet to Round),wy,Aquaculture Revenue,0.7,0.7,0.7,Proportion,Aquaculture,
+Price (Round),wp,Revenue,6.5,6.5,6.5,USD,Aquaculture,Sistema Nacional de Informacion e Integracion de Mercados (2019)
+Feed Requirements,feed_prop,Aquaculture Cost,0.02,0.01,0.03,Proportion,Aquaculture,CREMES (2018)
+Feed Cost,feed_cost,Aquaculture Cost,2,1.545,2,USD/kg,Aquaculture,"pers. comm. GMG, Earth Ocean Farms (2019), Intrafish (2019)"
+Overhead,over,Aquaculture Cost,170000,170000,170000,USD/cage,Aquaculture,"pers. comm. Felipe Ramirez (10/16/2018), InnovaSea (11/5/2018); pers. comm. Tyler Korte (11/5/2018), Blue Ocean Mariculture; pers. comm. Earth Ocean Farms S.A. de C.V. (2018); Salary tabulator (2017 SHCP); Cygnus MIA (2017)"
+Fry Cost,fry,Aquaculture Cost,2,2,2,USD,Aquaculture,CREMES (2018)
+Minimum Mortality,mmin,Aquaculture Mortality,1,0,10,Proportion (%),Aquaculture,
+Discount Factor,disc,Aquaculture Production,0.9,0.75,1,Proportion (%),Aquaculture,
+Biomass Proportion,nprop,Stock,1,1,1,Proportion,Fishery,
+Alpha,a_r,Recruitment,124.6011108,124.6011108,124.6011108,,Fishery,"INAPESCA (2018), Cisneros et al. (In Press)"
+Beta,b_r,Recruitment,48046.54456,48046.54456,48046.54456,,Fishery,"INAPESCA (2018), Cisneros et al. (In Press)"
+Delta,d_r,Recruitment,2.40198229,2.40198229,2.40198229,,Fishery,"INAPESCA (2018), Cisneros et al. (In Press)"
+Colorado Flow Factor,f1_r,Recruitment,2.49E-05,2.49E-05,2.49E-05,,Fishery,"INAPESCA (2018), Cisneros et al. (In Press)"
+Colorado Flow Estimate,f2_r,Recruitment,16000,16000,16000,,Fishery,"INAPESCA (2018), Cisneros et al. (In Press)"
+Age Lower Limit - Mature,a_mat_am,Age-Natural Mortality,3.5,3.5,3.5,Years,Fishery,"INAPESCA (2018), Cisneros et al. (In Press)"
+Age Lower Limit - Old,a_old_am,Age-Natural Mortality,20.5,20.5,20.5,Years,Fishery,"INAPESCA (2018), Cisneros et al. (In Press)"
+Juvenile Natural Mortality,m_juv_am,Age-Natural Mortality,0.549,0.549,0.549,Proportion,Fishery,"INAPESCA (2018), Cisneros et al. (In Press)"
+Mature Natural Mortality,m_mat_am,Age-Natural Mortality,0.069,0.069,0.069,Proportion,Fishery,"INAPESCA (2018), Cisneros et al. (In Press)"
+Old Natural Mortality,m_old_am,Age-Natural Mortality,0.411,0.411,0.411,Proportion,Fishery,"INAPESCA (2018), Cisneros et al. (In Press)"
+a,a_ls,Length-Selectivity,0.95,0.95,0.95,,Fishery,"INAPESCA (2018), Cisneros et al. (In Press)"
+b,b_ls,Length-Selectivity,19.88,19.88,19.88,,Fishery,"INAPESCA (2018), Cisneros et al. (In Press)"
+m,m_ls,Length-Selectivity,0.13,0.13,0.13,,Fishery,"INAPESCA (2018), Cisneros et al. (In Press)"
+Bycatch (2017),b_b,Age-Bycatch Mortality,80000,80000,80000,Individuals,Fishery,"INAPESCA (2018), Cisneros et al. (In Press)"
+Gear Loss,g_r,Ghost Catch,0.5,0.25,0.75,Proportion,Fishery,"Fisher interviews (Castellanos 2018, INAPESCA 2018)"
+Catch (Mass) (2017),f_2017,Catch,762,762,762,Metric Tonnes,Fishery,"INAPESCA (2018), Cisneros et al. (In Press)"
+Effort (2017),e_2017,Catch,125,100,150,Boat-Years,Fishery,"Fisher interviews (Castellanos 2018, INAPESCA 2018)"
+Effort Cost,c_2017,Catch,100000,50000,150000,USD/Boat-Year,Fishery,"Fisher interviews; (Green Crime in Mexico, Martinez 2018-Ch.12); INAPESCA (2018); see t_c.xlsx for details."
+Enforcement Switch,switch_en,Catch,0,0,0,Binary,Fishery,
+Enforcement Multiplier,multi_en,Catch,2,1,3,Proportion,FIshery,
+Enforcement Cost,c_enf,Catch,10000,5000,15000,USD2018/Vessel/Year,Fishery,"Fisher interviews; (Green Crime in Mexico, Martinez 2018-Ch.12); INAPESCA (2018); see t_c.xlsx for details."
+Effort Entry Limit,eta_limit,Catch,0.1,0.05,0.15,Proportion,Fishery,INAPESCA (2018)
