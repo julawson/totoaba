@@ -10,6 +10,7 @@ output: html_document
 library(here)
 library(tidyverse)
 library(janitor)
+library(broom)
 
 ```
 
@@ -23,6 +24,10 @@ dat_par = read_csv(here("data", "andrew", "dat_pars.csv")) %>%
 
 # Prices and characteristics of buche in end markets. Several sources.
 dat_p = read_csv(here("data", "andrew", "dat_p.csv"))
+
+# Stock size
+dat_b = read_csv(here("data", "andrew", "dat_b.csv"))
+dat_bc = read_csv(here("data", "andrew", "dat_bc.csv"))
 
 #  Marginal mortalities per month in aquaculture from Cygnus Ocean Farms (2017).
 dat_aqm = read_csv(here("data", "andrew", "dat_aqm.csv"))
@@ -59,6 +64,37 @@ ggplot() +
   ylab("Buche Mass (grams)") +
   geom_hline(yintercept=500, color="grey70", lty=2) #the average buche size reported by fishermen.
 
+#Plot of Weight distribution of buche
+
+ggplot(dat_p, aes(x=g)) + 
+  theme_bw() +
+  geom_histogram(aes(y=..density..), color="black", fill="white") + 
+  geom_vline(aes(xintercept=mean(g)), color="red", ##Mean line is at 289.11 grams
+             linetype="dashed") +
+  geom_density(alpha=.2, fill="#FF6666") +
+  geom_vline(xintercept=50) #Assuming a 2-3 kg totoaba has a 50 gram buche.
+
 ```
 
+```{r inverse demand}
 
+dat_p <- dat_p %>% 
+  filter(year==2014) %>% 
+  summarize(mean_kg=)
+
+mod <- lm(p ~ q, data = dat_p)
+tidy(mod)
+
+plot(p ~ q, data = dat_p, pch=16)
+abline(mod)
+
+```
+
+```{r biomass and age}
+
+plot(c ~ b, data = dat_bc, pch=16)
+
+ggplot() +
+  geom_point(data=dat_bc, aes(x=b,y=c))
+
+```
