@@ -46,6 +46,167 @@ dat_aqm = read_csv(here("data", "andrew", "dat_aqm.csv")) %>%
 
 ```
 
+```{r simple logistic growth}
+
+# simple model of logistic growth
+dNt <- function(r, N, K) r * N * ((K - N)/K)
+
+# iterate growth through time
+Nt <- function(r, N, K, t) {
+  for (i in 1:(t - 1)) {
+    N[i + 1] <- N[i] + dNt(r, N[i], K)
+# make sure population does not exceed carrying capacity
+    N[i + 1] <- min(N[i + 1], K)
+    }
+  N
+}
+
+t <- 100
+r <- 0.16
+K <- 100000
+
+# lets consider 4 different starting abundances (i.e., N(t=0) values)
+Nt0 = c(1000, 1500, 2000, 2500)
+
+#par(mfrow=c(2,2))
+
+for (i in seq_along(Nt0)) {
+  plot(1:t, Nt(r, Nt0[i], K, t),
+    main = paste('N(t=0) =', Nt0[i]), ylim =c(0, K))
+  abline(h = K, lty = 2, col='red')
+}
+
+```
+
+```{r demand curve 2014-2017}
+#Is there a better estimate of export volumes that I'm missing (from Andrew's spreadsheet)
+
+
+#Total catch (quantity supplied) of totoaba from 2014 to 2017
+#Julia's guesses c=catch in tonnes; b=biomass
+#Assume each totoaba is 25.7 kilograms (0.0257 tonnes)
+#Doesn't seem correct to use total catch as quantity, since this isn't necessarily quantity demanded.
+
+dat_bc_sup <- dat_bc %>% filter(y == 2014 | y == 2015 | y == 2016 |y == 2017) %>% 
+  mutate(c_kg = c*1000) %>% #catch from tonnes to kilograms
+  mutate(c_grams = c_kg*1000) %>% #catch from kilograms to grams
+  mutate(no_totoaba = c_kg/25.7) %>% #number of totoaba  in catch based on average size of fish (25.7 kilograms)
+  mutate(catch_buche = no_totoaba*500) %>%  #total number of buche given the total number of totoaba (assuming each totoaba has 500 gram buche)
+  select(y, catch_buche) %>% 
+  rename(year=y)
+  
+
+#Now figuring out the reported price relative to the total supply each year
+dat_p_supp <- dat_p %>% select(year, p, q, kg, g) %>% 
+  left_join(dat_bc_sup,by=c("year")) %>% 
+  mutate(catch_buche_adj=catch_buche/10000000)
+
+#Andrew's calculation based on an age-structured model.
+mod1 <- lm(p ~ q, data = dat_p_supp)
+summary(mod1)
+plot(p ~ q, data = dat_p_supp, pch=16)
+abline(mod1)
+
+#My calculation without the age-structured component (just total catch).
+mod2 <- lm(p ~ catch_buche_adj, data = dat_p_supp)
+summary(mod2)
+plot(p ~ catch_buche_adj, data = dat_p_supp, pch=16)
+abline(mod2)
+
+coefficients(mod1)
+coefficients(mod2)
+
+dat_p_check <- dat_p %>% 
+  group_by(year) %>% 
+  mutate(sum_kg = sum(kg),
+         sum_g = sum(g))
+
+mod3<- lm(p ~ sum_kg, data = dat_p_check )
+summary(mod3)
+plot(p ~ sum_kg, data = dat_p_check, pch=16)
+abline(mod3)
+
+#Mean quantity, mean price
+dat_p_check2 <- dat_p %>% 
+  group_by(year) %>% 
+  summarize(sum_g = sum(g),
+            mean_p = mean(p))
+
+mod4<- lm(mean_p ~ sum_g, data = dat_p_check2)
+summary(mod4)
+plot(mean_p ~ sum_g, data = dat_p_check2, pch=16)
+abline(mod4)
+
+```
+
+```{r stock growth}
+
+
+#Catchability
+f_2017=762*1000
+
+q = f_2017 / sum(n0 * fun_l_w(a_lw, fun_a_l(seq(a_0, a_i), linf_al, k_al, t0_al), b_lw) * fun_l_s(fun_a_l(seq(a_0, a_i), linf_al, k_al, t0_al), a_ls, b_ls, m_ls) * e_2017)
+
+
+#Recruitment
+a_i = 26.5 #end age
+a_0 = 0.5 #start age
+a_r = 124.6011 #alpha
+b_r = 48046.54 #beta
+d_r = 2.401982 #delta
+f1_r = 2.49e-05 #Colorado River Flow Factor
+f2_r = 16000 #Colorado River Flow Estimate
+
+recruit <- function(n) {
+  c(a_r * n /(1 + (n/b_r)*exp(d_r)) * exp(f1_r*f2_r))
+}
+
+results <- map_df(dat_bio[3], recruit)
+
+
+
+
+rec_1 <- fun_rec(sum(n[1, 4:(a_i - a_0 + 1)]), a_r, b_r, d_r, f1_r, f2_r) 
+
+
+
+
+
+dat_bio$newcol <- NA
+
+for (n in 1:nrow(dat_bio)){
+  newcol <- a*b*n
+}
+
+dat_bio$newcol <- newcol
+
+dat_bio$result <-NA
+
+for (n in 1:nrow(dat_bio)) {
+  n_2019 <- a_r * n /(1 + (n/b_r) ^ d_r) * exp(f1_r*f2_r) 
+  }
+
+dat_bio$result <- n_2019
+
+rec[1] = fun_rec(sum(n[1, 4:(a_i - a_0 + 1)]), a_r, b_r, d_r, f1_r, f2_r) 
+
+
+fun_rec = function(n, a_rec, b_rec, d_rec, f1_rec, f2_rec)
+  
+{n0 = ifelse((a_rec * n) / (1 + (n / b_rec) ^ d_rec) * exp(f1_rec * f2_rec) > 0, 
+             (a_rec * n) / (1 + (n / b_rec) ^ d_rec) * exp(f1_rec * f2_rec),
+             0)}
+
+
+
+rec[1] = fun_rec(sum(n[1, 4:(a_i - a_0 + 1)]), a_r, b_r, d_r, f1_r, f2_r) 
+  
+# Numbers at age to recruitment - Shepherd Recruitment Function.
+
+
+
+```
+
 ```{r fish size to buche}
 
 # Wet buche is 0.0161 of the total wet weight and up to 0.0300 in females (INAPESCA 2020) (wild-caught).
@@ -78,9 +239,28 @@ ggplot(dat_p, aes(x=g)) +
 
 ```{r inverse demand}
 
-dat_p <- dat_p %>% 
-  filter(year==2014) %>% 
-  summarize(mean_kg=)
+mod3 <- nls(buche_g_low~SSlogis(log(years), Asym, xmid, scal), dat=buche_ww)
+print(mod3)
+coef(mod3)
+
+#Asym top horizontal asymptote and represents the carrying capacity  879.0364596 grams
+#xmid is the time point where population density is half of asym, and represents the time to fastest growth # 
+#scal inverse of the slope of growth at xmid and represents the growth rate during the exponential phase #2.479 is the slope (r)
+
+
+mod2 <- lm(buche_g_low~poly(years,2), dat=buche_ww)
+print(mod2)
+
+mylogit <- glm(buche_g_low~years, data=buche_ww,family="binomial")
+
+ggplot(buche_ww, aes(x = years, y = buche_g_low))+
+  geom_point() +
+  geom_vline(xintercept=2.2896677)
+  #geom_smooth(method="loess",se=TRUE)
+  geom_smooth(method = "lm", formula = y  ~ poly(x,2), se=TRUE)
+
+
+
 
 mod <- lm(p ~ q, data = dat_p)
 tidy(mod)

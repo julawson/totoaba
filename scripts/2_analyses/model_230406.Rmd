@@ -1,0 +1,95 @@
+```{r libraries}
+
+library(here)
+library(tidyverse)
+library(janitor)
+library(broom)
+library(deSolve)
+library(ggplot2)
+library(purrr)
+
+```
+
+```{r step one. basic poaching model}
+
+# Define the parameters for the biological resource
+r <- 0.23 #intrinsic rate of population increase, estimated
+k <- 20226 #carrying capacity
+theta <- 0.001 #catchability
+
+# Define the parameters for the poaching effort
+n <- 0.1
+P <- 100 #exogenous market price per unit of output
+W <- 2 #fixed parameter
+z <- 2 * W
+
+# Calculate the optimal trader-poaching price (s*)
+s_star <- P / 2
+
+# Calculate the steady-state population (x*)
+x_star <- z * r * k / (s_star * theta^2 * k + z * r)
+
+# Calculate the equilibrium effort (E*)
+E_star <- s_star * theta * x_star / z
+
+# Calculate the equilibrium harvest rate (q_w_p)
+q_w_p <- (P * theta^2 * x_star^2) / (2 * z)
+
+# Parameter values for the ODE
+params <- c(r, k, theta, n, s_star, W)
+
+# Initial conditions
+initial_x <- 1400
+initial_E <- 1
+
+# Time points for the simulation
+time_points <- seq(0, 50, 0.1)
+
+# Define the ODE system for the biological resource and poaching effort
+dynamics_ode <- function(t, state, params) {
+  x <- state[1]
+  E <- state[2]
+  
+  r <- params[1]
+  k <- params[2]
+  theta <- params[3]
+  n <- params[4]
+  s_star <- params[5]
+  W <- params[6]
+  
+  # Include the total quantity harvested, q
+  q <- theta * x * E
+
+  dxdt <- r * x * (1 - x / k) - q
+  dEdt <- n * (s_star - 2 * W * E)
+
+  return(list(c(dxdt, dEdt)))
+}
+
+# Solve the ODE
+result <- ode(y = c(initial_x, initial_E), times = time_points, func = dynamics_ode, parms = params)
+
+# Convert the result to a data frame
+result_df <- as.data.frame(result)
+result_df <- cbind(result_df, x_star = x_star, E_star = E_star, q_w_p = q_w_p, s_star = s_star)
+colnames(result_df) <- c("time", "population", "effort", "x_star", "E_star", "q_w_p", "s_star")
+
+# Plot the biological resource dynamics and the steady-state population
+ggplot(result_df, aes(x = time, y = population)) +
+  geom_line(color = "blue") +
+  geom_hline(aes(yintercept = x_star), linetype = "dashed", color = "green") +
+  labs(title = "Biological Resource Dynamics",
+       x = "Time",
+       y = "Population") +
+  theme_minimal()
+
+```
+
+
+```{r step two. basic poaching model}
+
+
+
+
+
+```

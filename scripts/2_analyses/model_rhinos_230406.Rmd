@@ -1,0 +1,183 @@
+```{r libraries}
+
+library(here)
+library(tidyverse)
+library(janitor)
+library(broom)
+library(deSolve)
+
+```
+
+```{r base case parameters}
+
+# Define the parameters for the biological resource
+r <- 0.16 #intrinsic rate of population increase, estimated
+k <- 100000 #carrying capacity, number of individuals
+sigma <- 0.000256 #catchability, ranging from 0.000167 to 0.000256
+
+# Define the parameters for the poaching effort
+n <- 0.1
+P <- 221 #exogenous market price per unit of output
+W <- 5 #cost parameter, range is 2.18 to 7.6, midpoint 5
+theta <- 2 #cost parameter, assumed to be 2
+z <- 2 * W
+s <- 25 #price paid to poachers, ranges from $15-25 
+
+# Initial conditions
+initial_x <- 2600 #number of individuals
+initial_E <- 0.15 #presumably catch per unit effort, which is 0.000104 to 0.15 for rhinos
+
+# Time points for the simulation
+time_points <- seq(0, 50, 0.1)
+
+```
+
+
+```{r step 2.1. basic poaching model}
+
+# Calculate the steady-state population (x*)
+x_star <- (z * r * k) / (s * sigma^2 * k + z * r)
+
+# Parameter values for the ODE
+params <- c(r, k, sigma, n, s, W)
+
+# Define the ODE system for the biological resource and poaching effort
+dynamics_ode <- function(t, state, params) {
+  x <- state[1]
+  E <- state[2]
+  
+  r <- params[1]
+  k <- params[2]
+  sigma <- params[3]
+  n <- params[4]
+  s <- params[5]
+  W <- params[6]
+  
+  # Include the total quantity harvested, q
+  q <- sigma * x * E
+
+  dxdt <- r * x * (1 - x / k) - q
+  dEdt <- n * (s * sigma * x) - (theta * W * E)
+
+  return(list(c(dxdt, dEdt)))
+}
+
+# Solve the ODE
+result <- ode(y = c(initial_x, initial_E), times = time_points, func = dynamics_ode, parms = params)
+
+# Convert the result to a data frame
+result_df <- as.data.frame(result)
+result_df <- cbind(result_df, x_star = x_star)
+colnames(result_df) <- c("time", "population", "effort", "x_star")
+
+
+# Plot the biological resource dynamics and the steady-state population
+ggplot(result_df, aes(x = time, y = population)) +
+  geom_line(color = "blue") +
+  geom_hline(aes(yintercept = x_star), linetype = "dashed", color = "green") +
+  labs(title = "Steady State Population, x* (Green)",
+       x = "Time",
+       y = "Population") +
+  theme_minimal()
+
+```
+
+```{r step 2.2. price takers}
+# Case One. Traders are monopsonists when it comes to purchasing wildlife commodities from poachers, but sell their outputs elsewhere taking prices as given.
+
+result_df <- result_df %>% rename(x=population)
+
+# Calculate the equilibrium effort (E*) for a given price s
+result_df$E_star <- s * sigma * result_df$x / z
+
+# Calculate the equilibrium harvest rate (q_w) for a given price s 
+result_df$q_w <- (s * sigma^2 * result_df$x^2) / z
+
+# Calculate the optimal trader-poaching price (s*), produces the same value as P/2
+# Define pi_w function
+pi_w <- function(s, P, x, z, sigma) {
+  q_w <- (s * sigma^2 * x^2) / z
+  pi_w_value <- (P * q_w) - (s * q_w)
+  return(-pi_w_value) # We return the negative value because we want to maximize pi_w
+}
+# Optimize pi_w with respect to 's'
+result_df <- result_df %>%
+  mutate(
+    E_star = s * sigma * x / z,
+    q_w = (s * sigma^2 * x^2) / z,
+    s_star = pmap_dbl(list(P = P, x = x, z = z, sigma = sigma), function(P, x, z, sigma) {
+      optim_result <- optim(par = 0.5 * P, fn = pi_w, method = "Brent", lower = 0, upper = P, P = P, x = x, z = z, sigma = sigma)
+      return(optim_result$par)
+    })
+  )
+
+# Calculate the quantity (q_w_p) at optimal trader-poaching price s*
+result_df$q_w_p <- (P * sigma^2 * result_df$x^2) / (2 * z)
+
+```
+
+```{r step 3.1 trader as monopolist}
+
+#Parameters for the trader's payoff function
+alpha <- 6182
+beta <- 2.13
+c <- 50
+
+# Calculate q_w for a given s
+q_w <- function(s, x, z, sigma) {
+  return((s * sigma^2 * x^2) / z)
+}
+# Define pi_m function
+pi_m <- function(s, alpha, beta, c, x, z, sigma) {
+  q_w_value <- q_w(s, x, z, sigma)
+  pi_m_value <- (alpha - beta * q_w_value - c - s) * q_w_value
+  return(-pi_m_value) # We return the negative value because we want to maximize pi_m
+}
+
+# Modify the result_df data frame
+result_df <- result_df %>%
+  mutate(
+    optimal_s = pmap_dbl(list(alpha = alpha, beta = beta, c = c, x = x, z = z, sigma = sigma), function(alpha, beta, c, x, z, sigma) {
+      optim_result <- optim(par = 0.5 * alpha, fn = pi_m, method = "Brent", lower = 0, upper = alpha, alpha = alpha, beta = beta, c = c, x = x, z = z, sigma = sigma)
+      return(optim_result$par)
+    })
+  )
+
+# Display the first few rows of the modified result_df data frame
+head(result_df)
+
+
+
+# Trader's payoff function
+# Define pi_m function
+pi_m <- function(s, c, x, z, sigma, beta, alpha) {
+  q_w <- (s * sigma^2 * x^2) / z
+  pi_m_value <- ((alpha - beta * q_w - c - s) * q_w)
+  return(-pi_m_value) # We return the negative value because we want to maximize pi_w
+}
+
+# Optimize pi_w with respect to 's'
+result_df <- result_df %>%
+  mutate(
+    E_star = s * sigma * x / z,
+    q_w = (s * sigma^2 * x^2) / z,
+    s_star = pmap_dbl(list(P = P, x = x, z = z, sigma = sigma), function(P, x, z, sigma) {
+      optim_result <- optim(par = 0.5 * P, fn = pi_w, method = "Brent", lower = 0, upper = P, P = P, x = x, z = z, sigma = sigma)
+      return(optim_result$par)
+    })
+  )
+
+# Calculate the quantity (q_w_p) at optimal trader-poaching price s*
+result_df$q_w_p <- (P * sigma^2 * result_df$x^2) / (2 * z)
+
+
+# Calculate trader's payoff function (pi_m), optimal output level (q_w_m), and equilibrium harvest (q_m)
+result_df$pi_m <- alpha - beta * result_df$q_w - c - s
+result_df$q_w_m <- (alpha - c - s) / (2 * beta * W)
+result_df$s_m <- z * (alpha - c) / (2 * beta * (sigma^2 * result_df$population^2) + z)
+result_df$q_m <- ((alpha - c) * sigma^2 * result_df$population^2) / (2 * beta * (sigma^2 * result_df$population^2) + z)
+
+
+```
+
+
