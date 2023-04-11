@@ -13,7 +13,7 @@ library(deSolve)
 # Define the parameters for the biological resource
 r <- 0.16 #intrinsic rate of population increase, estimated
 k <- 100000 #carrying capacity, number of individuals
-sigma <- 0.000256 #catchability, ranging from 0.000167 to 0.000256
+sigma <- 0.000167 #catchability, ranging from 0.000167 to 0.000256
 
 # Define the parameters for the poaching effort
 n <- 0.1
@@ -25,7 +25,7 @@ s <- 25 #price paid to poachers, ranges from $15-25
 
 # Initial conditions
 initial_x <- 2600 #number of individuals
-initial_E <- 0.15 #presumably catch per unit effort, which is 0.000104 to 0.15 for rhinos
+initial_E <- 0.000104 #presumably catch per unit effort, which is 0.000104 to 0.15 for rhinos
 
 # Time points for the simulation
 time_points <- seq(0, 50, 0.1)
@@ -119,64 +119,73 @@ result_df$q_w_p <- (P * sigma^2 * result_df$x^2) / (2 * z)
 ```{r step 3.1 trader as monopolist}
 
 #Parameters for the trader's payoff function
-alpha <- 6182
-beta <- 2.13
-c <- 50
+alpha <- 6182 #parameter associated with the inverse demand function
+beta <- 2.13 #parameter associated with the inverse demand function
+c <- 50 #costs associated with the transportation and final sale of wild animal products 
 
-# Calculate q_w for a given s
-q_w <- function(s, x, z, sigma) {
-  return((s * sigma^2 * x^2) / z)
+# Calculate s_m (equilibrium remuneration paid to poachers)
+s_m <- function(alpha, c, z, beta, sigma, x) {
+  return((z * (alpha - c)) / (2 * beta * sigma^2 * x^2 + z))
 }
-# Define pi_m function
-pi_m <- function(s, alpha, beta, c, x, z, sigma) {
-  q_w_value <- q_w(s, x, z, sigma)
-  pi_m_value <- (alpha - beta * q_w_value - c - s) * q_w_value
-  return(-pi_m_value) # We return the negative value because we want to maximize pi_m
+
+# Calculate q_m (equilibrium harvest of wild animals when there is no captive breeding program)
+q_m <- function(alpha, c, beta, W, sigma, x, z) {
+  return(((alpha - c) * sigma^2 * x^2) / (2 * beta^W * sigma^2 * x^2 + z))
 }
 
 # Modify the result_df data frame
 result_df <- result_df %>%
   mutate(
-    optimal_s = pmap_dbl(list(alpha = alpha, beta = beta, c = c, x = x, z = z, sigma = sigma), function(alpha, beta, c, x, z, sigma) {
-      optim_result <- optim(par = 0.5 * alpha, fn = pi_m, method = "Brent", lower = 0, upper = alpha, alpha = alpha, beta = beta, c = c, x = x, z = z, sigma = sigma)
-      return(optim_result$par)
-    })
+    s_m = s_m(alpha, c, z, beta, sigma, x),
+    q_m = q_m(alpha, c, beta, W, sigma, x, z)
   )
 
-# Display the first few rows of the modified result_df data frame
-head(result_df)
-
-
-
-# Trader's payoff function
-# Define pi_m function
-pi_m <- function(s, c, x, z, sigma, beta, alpha) {
-  q_w <- (s * sigma^2 * x^2) / z
-  pi_m_value <- ((alpha - beta * q_w - c - s) * q_w)
-  return(-pi_m_value) # We return the negative value because we want to maximize pi_w
+# Function to find the roots of the equation q_m = r * x * (1 - x / k)
+find_roots <- function(q_m_value, r, k) {
+  a <- r / k
+  b <- -r
+  c <- q_m_value
+  
+  roots <- Re(polyroot(c(a, b, c)))
+  sorted_roots <- sort(roots)
+  
+  return(list(
+    low_stable_equilibrium = sorted_roots[1],
+    unstable_equilibrium = sorted_roots[2],
+    high_stable_equilibrium = sorted_roots[3]
+  ))
 }
 
-# Optimize pi_w with respect to 's'
+# Calculate the q_m value for the monopolist's optimal harvest
+q_m_value <- result_df$q_m[1]
+
+# Find the intersection points
+intersection_points <- find_roots(q_m_value, r, k)
+
+# Print the intersection points
+print(intersection_points)
+
+# Calculate q_natural_growth for each x value in result_df
 result_df <- result_df %>%
   mutate(
-    E_star = s * sigma * x / z,
-    q_w = (s * sigma^2 * x^2) / z,
-    s_star = pmap_dbl(list(P = P, x = x, z = z, sigma = sigma), function(P, x, z, sigma) {
-      optim_result <- optim(par = 0.5 * P, fn = pi_w, method = "Brent", lower = 0, upper = P, P = P, x = x, z = z, sigma = sigma)
-      return(optim_result$par)
-    })
+    q_natural_growth = r * x * (1 - x / k)
   )
 
-# Calculate the quantity (q_w_p) at optimal trader-poaching price s*
-result_df$q_w_p <- (P * sigma^2 * result_df$x^2) / (2 * z)
+# Calculate intersection points
+low_stable_eq <- intersection_points$low_stable_equilibrium
+unstable_eq <- intersection_points$unstable_equilibrium
+high_stable_eq <- intersection_points$high_stable_equilibrium
 
-
-# Calculate trader's payoff function (pi_m), optimal output level (q_w_m), and equilibrium harvest (q_m)
-result_df$pi_m <- alpha - beta * result_df$q_w - c - s
-result_df$q_w_m <- (alpha - c - s) / (2 * beta * W)
-result_df$s_m <- z * (alpha - c) / (2 * beta * (sigma^2 * result_df$population^2) + z)
-result_df$q_m <- ((alpha - c) * sigma^2 * result_df$population^2) / (2 * beta * (sigma^2 * result_df$population^2) + z)
-
+# Create the ggplot
+ggplot(result_df, aes(x = x)) +
+  geom_line(aes(y = q_m), color = "red", linetype = "dashed") +
+  geom_line(aes(y = q_natural_growth), color = "blue", linetype = "solid") +
+  labs(
+    title = "Population vs. Equilibrium Harvest",
+    x = "Population (x)",
+    y = "Harvest (q_m)"
+  ) +
+  theme_minimal()
 
 ```
 
