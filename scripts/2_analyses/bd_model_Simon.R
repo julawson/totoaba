@@ -192,3 +192,5 @@ results %>% ggplot(aes(x=x))+
   geom_point(aes(y=harvest_bertrand_own, colour = 'harvest_betrand_own'))+
   geom_point(aes(y=harvest_cournot_own, colour = 'harvest_cournot_own'))+
   geom_point(aes(y=harvest_monop_own, colour = 'harvest_monop_own'))
+
+#Could it please work?
