@@ -266,9 +266,6 @@ results %>% ggplot(aes(x = x)) +
 # In that case, it would mean that the firm behaves like a monopolist on a duopolistic market. Because it 
 # operates with residual demand, it produces less. 
 
-# Therefore, the proof does not compare the right counterfactuals.
-# behavior leads to 
-# If one does, it's the same as demonstrating that the monopoly produces less than 
-# a Bertrand when there is no competition. 
-# Or assuming the behavior of a monopoly on a duopolistic market. It is not really comparing both outcomes
+# Therefore, the proof does not compare the right counterfactuals. Let's illustrate that : 
+
 
