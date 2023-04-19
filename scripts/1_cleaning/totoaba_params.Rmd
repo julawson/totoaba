@@ -1,0 +1,64 @@
+## Calculating Parameters for Totoaba Model ##
+
+## All Values need to be in the units of totoaba tonnes ##
+
+```{r load libraries}
+library(here)
+library(tidyverse)
+```
+
+```{r loading data}
+
+dat_aqm <- read.csv(here("data","andrew","dat_aqm.csv")) #Aquaculture Mortality by Age (in Months)
+dat_b <- read.csv(here("data","andrew","dat_b.csv")) #Biomass by Age (INAPESCA)
+dat_bc <- read.csv(here("data","andrew","dat_bc.csv")) #Biomass, Number of Individuals by Year (INAPESCA) check?
+dat_bio <- read.csv(here("data","andrew","dat_bio.csv")) #Biomass, Number of Individuals by Age (in Years) (INAPESCA)
+dat_inapesca_bio <- read.csv(here("data","andrew","dat_inpesca_bio.csv")) #Age-Length-Weight Relationships (INAPESCA 2020)
+dat_p <- read.csv(here("data","andrew","dat_p.csv")) #Price-quantity data (OG Paper)
+dat_pars <- read.csv(here("data","andrew","dat_pars.csv")) %>% mutate(across(4:6, round, 6)) #Overall parameters (OG Paper)
+
+```
+
+```{r growth parameters}
+
+# Define the parameters for the biological resource
+r <- 0.23 #intrinsic rate of population increase ** (Needed: Ere)
+k <- 20226 #carrying capacity (biomass)
+theta <- 0.001 #catchability (needs to be effort per tonne of biomass) ** (Needed: Ere)
+
+```
+
+
+```{r poaching effort}
+
+# Define the parameters for the poaching effort
+n <- 0.1
+P <- 100 #exogenous market price per unit of output in tonnes of biomass, from INAPESCA Assessment
+W <- 5 #cost parameter, poaching costs per tonne of biomass
+theta <- 2 #cost parameter, assumed to be 2 (fixed)
+z <- 2 * W 
+s <- 25 #price paid to poachers
+
+alpha <- #inverse demand parameter
+beta <- #inverse demand parameter
+  
+```
+
+```{r farming costs}
+
+c <- #cost of trading (transport and final sale)
+v <- #farming cost
+lambda <- #substitutability
+
+
+```
+
+```{r initial conditions}
+# Initial conditions
+initial_x <- 0 #tonnes of totoaba in 2017
+initial_E <- 0.000104 #presumably catch per unit effort, which is 0.000104 to 0.15 for rhinos
+
+# Time points for the simulation
+time_points <- seq(0, 50, 0.1)
+
+```

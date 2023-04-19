@@ -14,36 +14,34 @@ library(purrr)
 
 # Define the parameters for the biological resource
 r <- 0.23 #intrinsic rate of population increase, estimated
-k <- 20226 #carrying capacity
-theta <- 0.001 #catchability
+k <- 20226 #carrying capacity (biomass)
+theta <- 0.001 #catchability (needs to be effort per tonne of biomass)
 
 # Define the parameters for the poaching effort
 n <- 0.1
-P <- 100 #exogenous market price per unit of output
-W <- 2 #fixed parameter
+P <- 100 #exogenous market price per unit of output (needs to be in tonnes of biomass)
+W <- 5 #cost parameter, range is 2.18 to 7.6, midpoint 5
+theta <- 2 #cost parameter, assumed to be 2
 z <- 2 * W
-
-# Calculate the optimal trader-poaching price (s*)
-s_star <- P / 2
-
-# Calculate the steady-state population (x*)
-x_star <- z * r * k / (s_star * theta^2 * k + z * r)
-
-# Calculate the equilibrium effort (E*)
-E_star <- s_star * theta * x_star / z
-
-# Calculate the equilibrium harvest rate (q_w_p)
-q_w_p <- (P * theta^2 * x_star^2) / (2 * z)
-
-# Parameter values for the ODE
-params <- c(r, k, theta, n, s_star, W)
+s <- 25 #price paid to poachers, ranges from $15-25 
 
 # Initial conditions
-initial_x <- 1400
-initial_E <- 1
+initial_x <- 2600 #number of individuals
+initial_E <- 0.000104 #presumably catch per unit effort, which is 0.000104 to 0.15 for rhinos
 
 # Time points for the simulation
 time_points <- seq(0, 50, 0.1)
+
+```
+
+
+```{r step 2.1. basic poaching model}
+
+# Calculate the steady-state population (x*)
+x_star <- (z * r * k) / (s * sigma^2 * k + z * r)
+
+# Parameter values for the ODE
+params <- c(r, k, sigma, n, s, W)
 
 # Define the ODE system for the biological resource and poaching effort
 dynamics_ode <- function(t, state, params) {
@@ -52,16 +50,16 @@ dynamics_ode <- function(t, state, params) {
   
   r <- params[1]
   k <- params[2]
-  theta <- params[3]
+  sigma <- params[3]
   n <- params[4]
-  s_star <- params[5]
+  s <- params[5]
   W <- params[6]
   
   # Include the total quantity harvested, q
-  q <- theta * x * E
+  q <- sigma * x * E
 
   dxdt <- r * x * (1 - x / k) - q
-  dEdt <- n * (s_star - 2 * W * E)
+  dEdt <- n * (s * sigma * x) - (theta * W * E)
 
   return(list(c(dxdt, dEdt)))
 }
@@ -71,25 +69,17 @@ result <- ode(y = c(initial_x, initial_E), times = time_points, func = dynamics_
 
 # Convert the result to a data frame
 result_df <- as.data.frame(result)
-result_df <- cbind(result_df, x_star = x_star, E_star = E_star, q_w_p = q_w_p, s_star = s_star)
-colnames(result_df) <- c("time", "population", "effort", "x_star", "E_star", "q_w_p", "s_star")
+result_df <- cbind(result_df, x_star = x_star)
+colnames(result_df) <- c("time", "population", "effort", "x_star")
+
 
 # Plot the biological resource dynamics and the steady-state population
 ggplot(result_df, aes(x = time, y = population)) +
   geom_line(color = "blue") +
   geom_hline(aes(yintercept = x_star), linetype = "dashed", color = "green") +
-  labs(title = "Biological Resource Dynamics",
+  labs(title = "Steady State Population, x* (Green)",
        x = "Time",
        y = "Population") +
   theme_minimal()
-
-```
-
-
-```{r step two. basic poaching model}
-
-
-
-
 
 ```
