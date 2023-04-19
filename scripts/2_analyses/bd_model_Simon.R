@@ -89,9 +89,21 @@ results %>% subset(steady_monop_own>-0.1 & steady_monop_own<0.1)
 # 2,625
 # 7,346
 # 90,030
+results %>% ggplot(aes(x=x))+
+  geom_line(aes(y=growth, colour = 'Growth'))+
+  geom_line(aes(y=harvest_monop_min, colour = 'Monop. min'))+
+  geom_line(aes(y=harvest_monop_own, colour = 'Monop. own'))
 
-### II. Cournot #####
-
+### IV. Cournot #####
+# Parameters: 
+    # Demand
+beta_f = beta
+beta_w = beta
+alpha_w = alpha
+alpha_f = alpha
+gamma = 0.75
+    # Costs:
+v = 1000
 # Reaction functions : same result
 # Closed form depending on s : same result
 # Equilibrium poacher wage : different result 
@@ -131,8 +143,8 @@ results = results %>% mutate(q_cournot_wild_og = q_cournot_wild_paper(sigma_own,
                              q_cournot_wild_own_min = q_cournot_wild_own(sigma_min, x, alpha_f, alpha_w, beta_f, beta_w, gamma, c, v, W))
 
 results %>% ggplot(aes(x=x))+
-  geom_point(aes(y=q_cournot_wild_og_min, colour = 'Cournot Paper'))+
-  geom_point(aes(y=q_cournot_wild_own_min, colour = 'Cournot own'))
+  geom_point(aes(y=q_cournot_wild_og, colour = 'Cournot Paper'))+
+  geom_point(aes(y=q_cournot_wild_own, colour = 'Cournot own'))
 # Their harvest overestimates actual harvest
 
 results %>% ggplot(aes(x=x))+
@@ -141,8 +153,8 @@ results %>% ggplot(aes(x=x))+
   geom_point(aes(y= q_cournot_wild_own, colour = 'Cournot recalc'))
 # From this graph : 
 # Their function does not yield an unambiguously lower harvest for Cournot, our does:
-sum((results$harvest_monop_own-results$q_cournot_wild_og)>0)
-sum((results$harvest_monop_own-results$q_cournot_wild_own)>0)
+sum((results$harvest_monop_own-results$q_cournot_wild_og)>0)/k
+sum((results$harvest_monop_own-results$q_cournot_wild_own)>0)/k
 
 
 results %>% mutate(ss_cournot_own = growth - q_cournot_wild_own) %>%
@@ -166,16 +178,13 @@ results  = results %>% mutate(q_farmed_cournot(alpha_w, alpha_f, beta_w, beta_f,
 # They have a typo in their result, and do not use the reported sigma in the documents they cite. 
 # However, with q_cournot_own, and sigma_own we find the same results
 
-
-
-### III. Bertrand #####
+### V. Bertrand #####
 # Define parameters for inverse demand function : 
-
 e   = gamma/(beta_w*beta_f - (gamma^2))
 a_f = (alpha_f*beta_w - alpha_w*gamma)/(beta_w*beta_f - (gamma^2))
 a_w = (alpha_w*beta_f - alpha_f*gamma)/(beta_w*beta_f - (gamma^2))
 b_f = beta_f/(beta_w*beta_f - (gamma^2))
-b_w = beta_w/(beta_w*beta_w - (gamma^2))
+b_w = beta_w/(beta_w*beta_f - (gamma^2))
 
 # Not the same result for salary
 s_b_paper = function(a_f, a_w, b_f, b_w, c, e, v, W, sigma, x){
@@ -201,7 +210,6 @@ q_b_own = function(a_f, a_w, b_f, b_w, c, e, v, W, sigma, x){
   return(y)
 }
 
-
 q_b_paper = function(a_f, a_w, b_f, b_w, c, e, v, W, sigma, x){
   y = ((sigma^2)*(x^2)*b_w*(b_f*(2*a_w+e*v - 2*b_w*c) + e*(c+a_f)))/((sigma^2)*(x^2)*(4*b_f*b_w - (e^2)) + W*b_w*(2*b_f*b_w - (e^2)))
   return(y)
@@ -213,7 +221,6 @@ results = results %>% mutate(q_b_paper = q_b_paper(a_f, a_w, b_f, b_w, c, e, v, 
 results %>% ggplot(aes(x=x))+
   geom_line(aes(y=q_b_own, colour = 'Closed form own'))+
   geom_line(aes(y=q_b_paper, colour = 'Paper'))
-
 
 # Find the steady states : 
 # Reference in the paper says 0; 8,480 ; 83,470
@@ -231,9 +238,10 @@ results %>%
   mutate(ss_bertrand = growth - q_b_own)%>%
   subset(ss_bertrand > -.1 & ss_bertrand <.1)
 
+# I cannot find ways to replicate their findings.
 
 
-### IV. Wrap up the results #####
+### VI. Wrap up the results #####
 
 # This graph summarizes their findings following the paper's function
 results %>% ggplot(aes(x = x))+
@@ -254,18 +262,60 @@ results %>% ggplot(aes(x = x)) +
 # 2. With their function, Lemma 2 does not stand: the poaching level in the case of Bertrand competition
 # is not larger than in the case of a monopoly
 
-### V. Rationalizing the way they work for Lemma 2 #####
+### VII. Rationalizing the way they work for Lemma 2 #####
 
 # Wrong assumption for their demonstration: 
+
 # They assume that : a_m  = a_w
-# However, these coefficients are computed using the assumption of two producers on the market. 
+# These coefficients are computed using the assumption of two producers on the market. 
 # Therefore, using a_w would mean : 
-# - Either there is no competitor and we compute a_w for gamma = 0. 
-# In this case, it is clear that a Bertrand behavior would lead to more harvesting than a Monopoly : tautological
-# - Either there is indeed a competitor on the market, and the firm still behaves like a monopoly. 
+# - There is indeed a competitor on the market, and the firm still behaves like a monopoly. 
 # In that case, it would mean that the firm behaves like a monopolist on a duopolistic market. Because it 
 # operates with residual demand, it produces less. 
 
+# Check : https://www.overleaf.com/5228619579rgmypmgnvbmn
+
 # Therefore, the proof does not compare the right counterfactuals. Let's illustrate that : 
 
+# A. Illustrate the difference between a monopoly operating on a monopolistic and duopolistic market
+harvest_monop_indirect = function(a_m, b_m, c, W, sigma, x){
+  y = (a_m - b_m *c)*(sigma^2)*(x^2)/(2*sigma^2*x^2 + 2*b_m*W)
+  return(y)
+}
+a_m = alpha/beta
+b_m = 1/beta
+
+
+lemma = data.frame(x, 
+                   growth = growth(x,r,k),
+                   monop_aw = harvest_monop_indirect(a_w, b_w, c, W, sigma_min, x),
+                   monop_am = harvest_monop_indirect(a_m, b_m, c, W, sigma_min, x),
+                   q_b_aw = q_b_paper(a_f, a_w, b_f, b_w, c, e, v, W, sigma_min, x))
+
+colors = c('blue', 'grey', 'black')
+lemma %>% ggplot(aes(x=x))+
+  geom_line(aes(y = monop_aw, colour = 'Monopoly on a duopolistic market'))+
+  geom_line(aes(y = monop_am, colour = 'Monopoly on a monopolistic market'))+
+  geom_line(aes(y = q_b_aw, colour = 'Bertrand on a duopolistic market'))+
+  scale_color_manual(values=colors)+
+  xlab('x')+
+  ylab("Harvest level")+
+  ggtitle('Comparison of Bertrand and Monopoly harvests depending on market structure')+
+  theme(plot.title = element_text(hjust = 0.5), 
+        legend.position="bottom")
+  
+# This result shows that if we do not (wrongfully so) assume that a_m = a_w, then their result
+# do not hold anymore. 
+colors = c('blue', 'grey', 'black', 'red')
+
+# Out of curiosity: 
+lemma %>%
+  mutate(q_cournot_wild = q_cournot_wild_paper(sigma_min, x, alpha_f, alpha_w, beta_f, beta_w, gamma, c, v, W))%>%
+  ggplot(aes(x=x))+
+  geom_line(aes(y = monop_aw, colour = 'Monopoly with a_w'))+
+  geom_line(aes(y = monop_am, colour = 'Monopoly with a_m'))+
+  geom_line(aes(y = q_b_aw, colour = 'Bertrand'))+
+  geom_line(aes(y=q_cournot_wild, colour = 'Cournot'))+
+  scale_color_manual(values=colors)
+# This result shows the inconsistency in their method and results. 
 
