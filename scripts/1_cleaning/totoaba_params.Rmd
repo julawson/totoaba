@@ -38,34 +38,138 @@ n <- 0.1
 theta <- 2 #cost parameter, assumed to be 2 (fixed)
 z <- 2 * W 
 
+# Estimated parameters, poaching
+P <- 4.20358 # exogenous market price per unit of output ($USD per tonne of totoaba biomass)
+W <- 3588.436 # poaching cost parameter, increases proportionally with effort ($USD per tonne of totoaba biomass), median value 1794.716
+c <- #cost of trading, all the costs associated with the transportation and final sale of wild animal products
+s <- 0.48550 # price paid to poachers ($USD per tonne of totoaba biomass)
+
+# Estimated parameters, farming
+v <- 18282.1 # farming cost parameter ($USD per tonne of totoaba biomass)
+lambda <- 0.75
+
+alpha <- 84.39 #inverse demand parameter
+beta <- 16.41 #inverse demand parameter
+  
+initial_x <- 1400 #t of totoaba in 2017
+initial_E <- 2.878333 # Catch-per-unit-effort, Totoaba (tonnes) per Vessel per Year (Median value is 0.4), considering the fishery is active for six months of the year
+
+```
+
+```{r calculating P and s}
+
 P_par <- read.csv(here("data","P_par.csv")) # Price in end-markets, from INAPESCA Fig 4.4
 s_par <- read.csv(here("data","s_par.csv"))  # Price paid to fishers on beaches, from INAPESCA Fig 4.4
 
-# Estimated parameters
-P <- 100 # exogenous market price per unit of output ($USD per tonne of totoaba biomass)
-W <- 5 # cost parameter, poaching costs ($USD per tonne of totoaba biomass)
-s <- 25 #price paid to poachers ($USD per tonne of totoaba biomass)
+### Calculate s, price paid to poachers ($USD per tonne of totoaba biomass)
 
-alpha <- #inverse demand parameter
-beta <- #inverse demand parameter
-  
+# Need x to be weight in tonnes of fresh totoaba
+# Need y to be price per tonne of fish totoaba
+
+#ggplot(s_par, aes(x=weight_kg_fresh, y=price_usd_perkg)) +
+#  geom_point() +
+#  geom_smooth(method="lm", se=TRUE, formula = y ~ x) 
+
+lm(price_usd_perkg~weight_kg_fresh, data=s_par)
+
+# For every 1-kg increase in the weight_kg_fresh, the price per kilogram increases by $3,608 USD
+
+# Transforming to weight of totoaba
+
+# Swim bladder wet weight makes up 1.61% of totoaba weight
+
+# 1. Changing swim bladder weight_g_fresh to totoaba weight
+s_par <- s_par %>% 
+  mutate(totoaba_weight_g = weight_g_fresh/0.0116) %>% 
+  mutate(totoaba_weight_kg = totoaba_weight_g/1000) %>% 
+  mutate(totoaba_price_usd_perkg = price_usd_perkg*0.0116) %>% 
+  mutate(totoaba_weight_t = totoaba_weight_kg/1000) %>%
+  mutate(totoaba_price_usd_pert = totoaba_price_usd_perkg/1000)
+
+lm(totoaba_price_usd_pert~totoaba_weight_t, data=s_par)
+
+# Final parameter for s, fishers paid 0.48550 USD per tonne of totoaba
+
+### Now calculating P, exogenous market price per unit of output ($USD per tonne of totoaba biomass)
+
+# Change dry weight to wet weight (conversion factor is 0.31, sources: INAPESCA 2018; True 2012; True 2018)
+# Need x to be weight in tonnes of fresh totoaba
+# Need y to be price per tonne of totoaba
+
+P_par <- P_par %>% 
+  mutate(weight_g_wet = weight_g_dried/0.31) %>% 
+  mutate(totoaba_weight_g = weight_g_wet/0.0116) %>%
+  mutate(totoaba_weight_kg = totoaba_weight_g/1000) %>%
+  mutate(totoaba_weight_t = totoaba_weight_kg/1000) %>%
+  mutate(price_per_kg_wet = price_per_kg_dried/0.31) %>%
+  mutate(totoaba_price_usd_perkg = price_per_kg_wet*0.0116) %>% 
+  mutate(totoaba_price_usd_pert = totoaba_price_usd_perkg/1000)
+
+#ggplot(P_par, aes(x=totoaba_weight_t, y=totoaba_price_usd_pert)) +
+#  geom_point() +
+#  geom_smooth(method="lm", se=TRUE, formula = y ~ x) 
+
+lm(totoaba_price_usd_pert~totoaba_weight_t, data=P_par)
+
+```
+
+```{r calculating effort}
+
+# Effort measured in number of vessels
+# Therefore, CPUE is Totoabas/Vessels, or tonnes of Totoaba/Vessel
+
+# Calculating initial Aggregate Poaching Effort, E
+E_par <- read.csv(here("data","E_par.csv")) # Effort breakdown, from INAPESCA Fig 4.2
+w_par <- read.csv(here("data","w_par.csv")) # Cost data, from Buche Bros
+
+E_par <- E_par %>% 
+  mutate(days_permonth = (days_perweek*weeks_permonth)) %>% 
+  mutate(sets_permonth = (days_permonth*sets_pervessel_day)) %>% 
+  mutate(sets_vessels_permonth = vessels*sets_permonth) %>% 
+  mutate(totoaba_per_vessel = totoabas_year/vessels) %>% 
+  mutate_at(vars(totoaba_per_vessel), ~replace(., is.nan(.), 0)) %>% 
+  mutate(totoaba_t_per_vessel = biomass_captured_t/vessels) %>% 
+  mutate_at(vars(totoaba_t_per_vessel), ~replace(., is.nan(.), 0))
+
+E_val <- E_par %>% 
+  summarize(median=median(totoaba_t_per_vessel),
+            mean=mean(totoaba_t_per_vessel))
+
+# W parameter, proportional increase in cost per unit of effort
+# x axis should be effort (number of vessels)
+# y axis should be cost per vessel
+
+#Step one, get all operating costs into cost per tonne of totoaba
+
+w_par_ops <- w_par %>% 
+  mutate(operating_cost_permonth = (bribe_permonth+ foodfuel_permonth + gear_replacement_permonth)) %>% #monthly operating costs
+  mutate(cost_per_t_totoaba = operating_cost_permonth/totoaba_t_per_vessel) %>%  #operating cost per tonne of totoaba
+  mutate(wages_per_t_totoaba = price_poachers_per_t*0.75) %>% 
+  mutate(running_cost = cost_per_t_totoaba+wages_per_t_totoaba) %>% 
+  mutate_at(vars(running_cost), ~replace(., is.nan(.), 0)) 
+
+w_par_val <- w_par_ops %>% 
+  summarize(median=median(running_cost),
+            mean=mean(running_cost))
+
+# Step two, add in probability of enforcement action (i.e. fines, gear, or vessel confiscation)
+# For now, leaving this out, because this is a fleet-wide probability, rather than per vessel.
+
+
 ```
 
 ```{r farming costs}
 
-c <- #cost of trading (transport and final sale)
-v <- #farming cost
-lambda <- #substitutability
+v_par <- read.csv(here("data","v_par.csv")) # Farming cost data, from Buche Bros
 
+v_par <- v_par %>% 
+  mutate(operating_costs = (maintenance_year+cleaning_year+vessel_maintenance_year+fuel_year+feed+labor+facility_lease+admin)) %>% 
+  mutate(operating_costs/capacity_per_sphere_t)
 
 ```
 
-```{r initial conditions}
-# Initial conditions
-initial_x <- 1400 #t of totoaba in 2017
-initial_E <- 0.000104 #125 vessels, 763 tonnes of adults/sub-adults
+```{r demand curve}
 
-# Time points for the simulation
-time_points <- seq(0, 50, 0.1)
+lm(p~q, data=dat_p)
 
 ```
