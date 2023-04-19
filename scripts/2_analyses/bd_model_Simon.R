@@ -308,7 +308,7 @@ lemma %>% ggplot(aes(x=x))+
 # do not hold anymore. 
 colors = c('blue', 'grey', 'black', 'red')
 
-# Out of curiosity: 
+# Out of curiosity:  
 lemma %>%
   mutate(q_cournot_wild = q_cournot_wild_paper(sigma_min, x, alpha_f, alpha_w, beta_f, beta_w, gamma, c, v, W))%>%
   ggplot(aes(x=x))+
