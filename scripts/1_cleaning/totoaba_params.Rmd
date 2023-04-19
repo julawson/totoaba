@@ -24,7 +24,7 @@ dat_pars <- read.csv(here("data","andrew","dat_pars.csv")) %>% mutate(across(4:6
 
 # Define the parameters for the biological resource
 r <- 0.23 #intrinsic rate of population increase ** (Needed: Ere)
-k <- 20226 #carrying capacity (biomass)
+k <- 20226 #carrying capacity (biomass in t)
 theta <- 0.001 #catchability (needs to be effort per tonne of biomass) ** (Needed: Ere)
 
 ```
@@ -33,12 +33,18 @@ theta <- 0.001 #catchability (needs to be effort per tonne of biomass) ** (Neede
 ```{r poaching effort}
 
 # Define the parameters for the poaching effort
+# Fixed parameters
 n <- 0.1
-P <- 100 #exogenous market price per unit of output in tonnes of biomass, from INAPESCA Assessment
-W <- 5 #cost parameter, poaching costs per tonne of biomass
 theta <- 2 #cost parameter, assumed to be 2 (fixed)
 z <- 2 * W 
-s <- 25 #price paid to poachers
+
+P_par <- read.csv(here("data","P_par.csv")) # Price in end-markets, from INAPESCA Fig 4.4
+s_par <- read.csv(here("data","s_par.csv"))  # Price paid to fishers on beaches, from INAPESCA Fig 4.4
+
+# Estimated parameters
+P <- 100 # exogenous market price per unit of output ($USD per tonne of totoaba biomass)
+W <- 5 # cost parameter, poaching costs ($USD per tonne of totoaba biomass)
+s <- 25 #price paid to poachers ($USD per tonne of totoaba biomass)
 
 alpha <- #inverse demand parameter
 beta <- #inverse demand parameter
@@ -56,8 +62,8 @@ lambda <- #substitutability
 
 ```{r initial conditions}
 # Initial conditions
-initial_x <- 0 #tonnes of totoaba in 2017
-initial_E <- 0.000104 #presumably catch per unit effort, which is 0.000104 to 0.15 for rhinos
+initial_x <- 1400 #t of totoaba in 2017
+initial_E <- 0.000104 #125 vessels, 763 tonnes of adults/sub-adults
 
 # Time points for the simulation
 time_points <- seq(0, 50, 0.1)
