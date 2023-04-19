@@ -315,7 +315,27 @@ lemma %>%
   geom_line(aes(y = monop_aw, colour = 'Monopoly with a_w'))+
   geom_line(aes(y = monop_am, colour = 'Monopoly with a_m'))+
   geom_line(aes(y = q_b_aw, colour = 'Bertrand'))+
-  geom_line(aes(y=q_cournot_wild, colour = 'Cournot'))+
+  geom_line(aes(y = q_cournot_wild, colour = 'Cournot'))
   scale_color_manual(values=colors)
 # This result shows the inconsistency in their method and results. 
 
+colors = c('blue', 'grey', 'black', 'red')
+lemma = data.frame(x=seq(0,12500), 
+                   growth = growth(seq(0,12500),r,k),
+                   monop_aw = harvest_monop_indirect(a_w, b_w, c, W, sigma_own, seq(0,12500)),
+                   monop_am = harvest_monop_indirect(a_m, b_m, c, W, sigma_own, seq(0,12500)),
+                   q_b_aw = q_b_paper(a_f, a_w, b_f, b_w, c, e, v, W, sigma_own, seq(0,12500)))
+# Out of curiosity:  
+lemma %>%
+  mutate(q_cournot_wild = q_cournot_wild_paper(sigma_min, x, alpha_f, alpha_w, beta_f, beta_w, gamma, c, v, W))%>%
+  ggplot(aes(x=x))+
+  geom_line(aes(y = monop_aw, colour = 'Monopoly with a_w'))+
+  geom_line(aes(y = monop_am, colour = 'Monopoly with a_m'))+
+  geom_line(aes(y = q_b_aw, colour = 'Bertrand'))+
+  geom_line(aes(y = growth, colour = 'Growth'))+
+  scale_color_manual(values=colors)+
+  xlab('x')+
+  ylab("Harvest level")+
+  ggtitle('Comparison of Bertrand and Monopoly steady states on market structure')+
+  theme(plot.title = element_text(hjust = 0.5), 
+        legend.position="bottom")
