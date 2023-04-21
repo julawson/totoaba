@@ -130,7 +130,7 @@ s_m <- function(alpha, c, z, beta, sigma, x) {
 
 # Calculate q_m (equilibrium harvest of wild animals when there is no captive breeding program)
 q_m <- function(alpha, c, beta, W, sigma, x, z) {
-  return(((alpha - c) * sigma^2 * x^2) / (2 * beta^W * sigma^2 * x^2 + z))
+  return(((alpha - c) * sigma^2 * x^2) / (2 * beta * sigma^2 * x^2 + z))
 }
 
 # Modify the result_df data frame
