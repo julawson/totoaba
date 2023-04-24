@@ -1,3 +1,4 @@
+rm(list=ls())
 library(here)
 library(tidyverse)
 library(janitor)
@@ -5,6 +6,7 @@ library(broom)
 library(deSolve)
 library(ggplot2)
 library(rootSolve)
+
 ####################################################################################################################
 # Model for Damania, Bulte - The economics of wildlife farming and endangered species conservation - 2005
 ####################################################################################################################
@@ -202,7 +204,8 @@ results = results %>% mutate(s_b_own = s_b_own(a_f, a_w, b_f, b_w, c, e, v, W, s
 
 results %>% ggplot(aes(x=x))+
   geom_point(aes(y=s_b_own, colour = 'Own wage'))+
-  geom_point(aes(y=s_b_paper, colour = 'Their wage'))
+  geom_point(aes(y=s_b_paper, colour = 'Their wage'))+
+  ggtitle('Bertrand wage')
 # Our wage is larger, and crosses, again. 
 
 q_b_own = function(a_f, a_w, b_f, b_w, c, e, v, W, sigma, x){
@@ -220,7 +223,8 @@ results = results %>% mutate(q_b_paper = q_b_paper(a_f, a_w, b_f, b_w, c, e, v, 
                              q_b_own = q_b_own(a_f, a_w, b_f, b_w, c, e, v, W, sigma_own, x))
 results %>% ggplot(aes(x=x))+
   geom_line(aes(y=q_b_own, colour = 'Closed form own'))+
-  geom_line(aes(y=q_b_paper, colour = 'Paper'))
+  geom_line(aes(y=q_b_paper, colour = 'Paper'))+
+  ggtitle('Bertrand harvest function')
 
 # Find the steady states : 
 # Reference in the paper says 0; 8,480 ; 83,470
@@ -248,7 +252,7 @@ results %>% ggplot(aes(x = x))+
   geom_point(aes(y = growth, colour = 'Growth')) +
   geom_point(aes(y = harvest_monop_own, colour= 'Monop')) +
   geom_point(aes(y = q_cournot_wild_og, colour = 'Cournot')) +
-  geom_point(aes(y = q_b_paper, colour='Bertrand'))
+  geom_point(aes(y = q_b_paper, colour = 'Bertrand'))
 
 # With our results : 
 results %>% ggplot(aes(x = x)) +
