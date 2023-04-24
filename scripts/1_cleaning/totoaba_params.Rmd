@@ -46,7 +46,7 @@ s <- 0.48550 # price paid to poachers ($USD per tonne of totoaba biomass)
 
 # Estimated parameters, farming
 v <- 18282.1 # farming cost parameter ($USD per tonne of totoaba biomass)
-lambda <- 0.75
+lambda <- 0.75 #gamma
 
 alpha <- 84.39 #inverse demand parameter
 beta <- 16.41 #inverse demand parameter
