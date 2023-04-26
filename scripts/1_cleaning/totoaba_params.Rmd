@@ -39,13 +39,13 @@ theta <- 2 #cost parameter, assumed to be 2 (fixed)
 z <- 2 * W 
 
 # Estimated parameters, poaching
-P <- 155.916 # exogenous market price per unit of output ($USD per tonne of totoaba biomass)
-W <- 3588.436 # poaching cost parameter, increases proportionally with effort ($USD per tonne of totoaba biomass), median value 1794.716
-c <- #cost of trading, all the costs associated with the transportation and final sale of wild animal products
-s <- 58.0895 # price paid to poachers ($USD per tonne of totoaba biomass)
+P <- 624310.9 # exogenous market price per unit of output ($USD per tonne of totoaba biomass, assuming each totoaba is 25.7 kg and has a 500 g buche)
+W <-  3588.436 # poaching cost parameter, increases proportionally with effort (operational annual cost only, $USD per tonne of totoaba biomass)
+c <- 1208.372 #cost of trading, all the costs associated with the transportation and final sale of wild animal products (assumed to be annual probability of gear or vessel confiscation, or arrest)
+s <- 34594.88 # price paid to poachers ($USD per tonne of totoaba biomass, assuming each totoaba is 25.7 kg and has a 500 g buche)
 
 # Estimated parameters, farming
-v <- 18282.1 # farming cost parameter ($USD per tonne of totoaba biomass)
+v <- 8828.34 # farming cost parameter ($USD per tonne of totoaba biomass)
 lambda <- 0.75 #gamma
 
 alpha <- 84.39 #inverse demand parameter
@@ -62,46 +62,34 @@ P_par <- read.csv(here("data","P_par.csv")) # Price in end-markets, from INAPESC
 s_par <- read.csv(here("data","s_par.csv"))  # Price paid to fishers on beaches, from INAPESCA Fig 4.4
 
 ### Calculate s, price paid to poachers ($USD per tonne of totoaba biomass)
-# We assume each totoaba is an average weight of 26 kg (and has a 500 gram buche) (this is reflected by averages reported by INAPESCA 2020)
+# We assume each totoaba is an average weight of 25.7 kg (and has a 500 gram buche) (this is reflected by averages reported by INAPESCA 2020)
 
-# Need x to be weight in tonnes of fresh totoaba
-# Need y to be price per tonne of fish totoaba
+# Therefore, there are 38.91 individual totoaba in a tonne.
 
-# Transforming to weight of totoaba
+# Each average individual (assuming each individual has a 500 gram buche) is worth $889.1 USD
 
-# Create an equation to transform buche weight to fish weight
-dat_inapesca_bio <- dat_inapesca_bio %>% 
-  mutate(weight_buche_g = (weight*0.0161)*1000)
+# Therefore, 38.91 individuals x $889.1 USD = $34,594.88 USD/tonne of totoaba
 
-fish_to_buche_equation <- lm(weight_buche_g ~ weight, dat=dat_inapesca_bio)
-summary(fish_to_buche_equation)
-
-# Swim bladder wet weight makes up 1.61% of totoaba weight
-
-# 1. Changing swim bladder weight_g_fresh to totoaba weight, 
-s_par <- s_par %>% 
-  mutate(totoaba_weight_g = weight_g_fresh/0.0161) %>% 
-  mutate(totoaba_weight_kg = totoaba_weight_g/1000) %>% 
-  mutate(totoaba_weight_t = totoaba_weight_kg/1000) 
-
-lm <- lm(price_per_tonne~totoaba_weight_t, data=s_par)
+#Equation used to estimate value of a 500 gram buche:
+lm <- lm(price_usd_perkg~weight_kg_fresh, data=s_par)
 summary(lm)
 
-# Final parameter for s, fishers paid 58.0895 USD per tonne of totoaba
+ggplot(aes(y=price_usd_perkg, x=weight_kg_fresh), data=s_par) +
+  geom_point()
+
+
 
 ### Now calculating P, exogenous market price per unit of output ($USD per tonne of totoaba biomass)
 
-# Need x to be weight in tonnes of fresh totoaba
-# Need y to be price per tonne of totoaba
+# We assume each totoaba is an average weight of 25.7 kg (and has a 500 gram buche) (this is reflected by averages reported by INAPESCA 2020)
 
-P_par <- P_par %>% 
-  mutate(weight_g_wet = weight_g_dried/0.31) %>%
-  mutate(totoaba_weight_g = weight_g_wet/0.0161) %>% 
-  mutate(totoaba_weight_kg = totoaba_weight_g/1000) %>% 
-  mutate(totoaba_weight_t = totoaba_weight_kg/1000) 
+# Therefore, there are 38.91 individual totoaba in a tonne.
 
-lm2 <- lm(price_per_tonne~totoaba_weight_t, data=P_par)
-summary(lm2)
+# Each average individual (assuming each individual has a 500 gram buche) is worth $16,045 USD
+
+# Therefore, 38.91 individuals x $16,045 USD = $624,310.9 USD/tonne of totoaba
+
+
 
 # Estimating price premium for Ere
 
@@ -150,7 +138,10 @@ w_par_val <- w_par_ops %>%
             mean=mean(running_cost))
 
 # Step two, add in probability of enforcement action (i.e. fines, gear, or vessel confiscation)
-# For now, leaving this out, because this is a fleet-wide probability, rather than per vessel.
+# Treating step two as a calculation of c, cost of trading
+
+c_par_val <- w_par_ops %>% 
+  mutate(running_cost_c=((prob_fine*fine) +(prob_gear_conf*gear_conf)+(prob_vessel_conf*vessel_cost)))
 
 
 ```
