@@ -1,0 +1,47 @@
+## Calculating Aquaculture Production Costs (v) for Totoaba Model ##
+
+
+```{r load libraries}
+library(here)
+library(tidyverse)
+
+#  Marginal mortalities per month in aquaculture from Cygnus Ocean Farms (2017).
+dat_aqm = read_csv(here("data", "andrew","dat_aqm.csv"))
+
+# Years-Lengths-Weights wild totoaba stock.
+dat_inapesca_bio = read_csv(here("data", "andrew", "dat_inapesca_bio.csv"))
+
+
+# Table to be filled 
+aqua_par = read_csv(here("data","aqua_par.csv"))
+
+```
+
+```{r age-weight-length calculations}
+
+
+```
+
+```{r growth equation}
+
+# Parameters
+L_inf <- 206.3
+k <- 0.1743
+a <- 
+t0 <- 0.3
+
+
+# Conversion factor to estimate buche mass from a given weight was calculated by assuming a 25.7 kilogram fish produces a 500 gram buche (factor = 0.019455253)
+
+
+```
+
+```{r costs per unit biomass}
+
+# Biomass capacity of totoaba 20 kilograms / m^3
+# Capacity per aquaculture sphere 7200 m^3
+# Biomass of totoaba per aquaculture sphere 144,000 kilograms (144 tonnes)
+
+
+
+```
