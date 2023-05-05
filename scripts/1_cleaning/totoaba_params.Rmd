@@ -72,7 +72,7 @@ s_par <- read.csv(here("data","s_par.csv"))  # Price paid to fishers on beaches,
 
 #Equation used to estimate value of a 500 gram buche:
 lm <- lm(price_usd_perkg~weight_kg_fresh, data=s_par)
-summary(lm)
+summary(lm)1400
 
 ggplot(aes(y=price_usd_perkg, x=weight_kg_fresh), data=s_par) +
   geom_point()
