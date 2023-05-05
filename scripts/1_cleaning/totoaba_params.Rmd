@@ -24,8 +24,8 @@ dat_pars <- read.csv(here("data","andrew","dat_pars.csv")) %>% mutate(across(4:6
 
 # Define the parameters for the biological resource
 r <- 0.23 #intrinsic rate of population increase ** (Needed: Ere)
-k <- 20226 #carrying capacity (biomass in t)
-theta <- 0.001 #catchability (needs to be effort per tonne of biomass) ** (Needed: Ere)
+k <- 20226 #carrying capacity (biomass in t) (source: INAPESCA)
+theta <- 0.0005526788 #catchability (needs to be effort per tonne of biomass) (source: INAPESCA via Andrew)
 
 ```
 
