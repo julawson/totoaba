@@ -12,28 +12,28 @@ library(rootSolve)
 ####################################################################################################################
 
 # I. Totoaba growth #######
-K = 20226 # Carrying capacity in tonnes
-avg_weight = 28 # Individual average weight in jilograms
-K_ind = K*1000/avg_weight # Carrying capacity in individuals
-r = .23 # Population growth rate
+K = 20226 # Carrying capacity (in tonnes)
+avg_weight = 28 # Individual average weight (in kilograms)
+K_ind = K*1000/avg_weight # Carrying capacity in individuals (unitless)
+r = .23 # Population growth rate (unitless)
 
 # II. Demand characteristics ########
 # Assume a linear inverse demand function p(q) = alpha - beta * q
 # Where q : totoaba buche (unitless) of mass m in grams
 #
-alpha = 30000
-beta = 50
+alpha = 30000 #choke price (in USD per individual)
+beta = 50 
 
 # III. Cost & engineering characteristics ######
 # A. For poachers : 
 # Profit is : wage/fish * number of fish - W*Effort^2
-W = 3588.436
+W = 3588.436 # Wage (USD per unit of fish)
 # Catchability 
-sigma = .1
+sigma = .1 #(unitless)
 
 # B. For traders : 
 # c is cost of bribing, transport etc
-c = 1208.372 
+c = 1208.372 # (in USD)
 
 
 # Save parameters from calibration to data folder ####
