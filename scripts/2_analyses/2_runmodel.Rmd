@@ -1,0 +1,136 @@
+# Now running the Blute and Damania Model using final parameters
+
+```{r set up}
+
+library(here)
+library(tidyverse)
+
+```
+
+```{r initial simulation}
+
+x = seq(1, K, 10)
+
+
+# I. Growth ####
+growth = function(x){
+  r
+  K
+  y = r*x*(1-x/K)
+  return(y)
+}
+
+# II. Monopoly ####
+# A. Poachers wage
+monopoly_wage = function(x){
+  alpha 
+  c 
+  W 
+  beta 
+  sigma 
+  y = 2*W*(alpha - c)/(2*sigma^2*beta*x^2 + 2*W)
+  return(y)
+}
+
+monopoly_poaching = function(x){
+  alpha 
+  c 
+  W 
+  y = (alpha - c)/(2*beta * sigma^2 * x^2 + 2*W)
+  return(y)
+}
+
+results = data.frame(x) %>%
+  mutate(growth = growth(x),
+         monopoly = monopoly_poaching(x), 
+         diff = growth - monopoly)
+
+# Create the ggplot2 figure
+ggplot(results, aes(x = x)) +
+  geom_line(aes(y = growth, color = "Growth")) +
+  geom_line(aes(y = monopoly, color = "Monopoly")) +
+  labs(x = "Time",
+       y = "Rate",
+       title = "Growth and Monopoly over Time",
+       subtitle = "Comparison between growth and monopoly poaching rates",
+       color = "Rate Type") +
+  theme_minimal()
+
+```
+
+```{r steady states}
+
+#Define time points
+time_points <- seq(0, 50, 0.1)
+
+x = seq(0,k,1) # Generate space for x
+
+### II. Perfect competition : the basic poaching model ####
+
+# Define growth function
+growth <- function(x,r,k){
+  return(r*x*(1-x/k))
+}
+
+#Initiate results dataframe
+results = data.frame(x)%>%
+  mutate(growth = growth(x,r,k))
+
+# Define poaching in this scenario
+harvest_competition = function(x, sigma){
+  y = P*sigma^2*x^2/(4*W)
+  return(y)
+}
+
+
+### III. Monopoly set-up #####
+
+# Define harvest function in Monopoly : 
+# - Mathematical computations yield the same results.
+harvest_monop = function(x, sigma, alpha, c, beta, W){
+  y = ((alpha - c)*(sigma^2)*(x^2))/(2*beta*(sigma^2)*(x^2) + 2*W)
+  return(y)
+}
+# Set results 
+# Compute growth - harvest
+results = results %>% mutate(harvest_monop_min = harvest_monop(x, sigma, alpha, c, beta, W),
+                             harvest_monop_max = harvest_monop(x, sigma_max, alpha, c, beta, W),
+                             harvest_monop_own = harvest_monop(x, sigma_own, alpha, c, beta, W),
+                             steady_monop_min = growth - harvest_monop_min,
+                             steady_monop_max = growth - harvest_monop_max,
+                             steady_monop_own = growth - harvest_monop_own)
+
+# Find where growth = harvest to find steady states (sign change is necessary)
+results %>% 
+  subset(steady_monop_min>-0.1 & steady_monop_min<0.1) %>%
+  select(x, steady_monop_min)
+# Steady state is at 90,120 in this case
+
+results %>%
+  subset(steady_monop_max>-0.1 & steady_monop_max<0.1) %>%
+  select(x, steady_monop_max)
+
+# Steady state is at 90,054
+
+results %>% 
+  subset(steady_monop_own>-0.1 & steady_monop_own<0.1) %>%
+  select(x, steady_monop_own)
+# 3 steady states : 
+# 2,625; 
+# 7,346; 
+# 90,029
+
+# Values in the paper are : 
+# 2,625
+# 7,346
+# 90,030
+
+# Plot the different results for different sigma values
+results %>% ggplot(aes(x=x))+
+  geom_line(aes(y=harvest_monop_max, colour = 'Monop. max'), linewidth = 1.1)+
+  geom_line(aes(y=harvest_monop_min, colour = 'Monop. min'), linewidth = 1.1)+
+  geom_line(aes(y=harvest_monop_own, colour = 'Monop. own'), linewidth = 1.1)+
+  theme_bw()+
+  ggtitle('Comparing Monopoly harvest for different sigma values')
+
+```

@@ -72,12 +72,10 @@ s_par <- read.csv(here("data","s_par.csv"))  # Price paid to fishers on beaches,
 
 #Equation used to estimate value of a 500 gram buche:
 lm <- lm(price_usd_perkg~weight_kg_fresh, data=s_par)
-summary(lm)1400
+summary(lm)
 
 ggplot(aes(y=price_usd_perkg, x=weight_kg_fresh), data=s_par) +
   geom_point()
-
-
 
 ### Now calculating P, exogenous market price per unit of output ($USD per tonne of totoaba biomass)
 
@@ -162,6 +160,32 @@ v_par <- v_par %>%
 
 ```{r demand curve}
 
-lm(p~q, data=dat_p)
+# p is price per gram for end-market prices in 2019 USD
+# q is metric tonnes of dried buche from the fishery
+
+# Step 1. Convert price per gram to price per tonne
+
+dat_p <- dat_p %>% 
+  mutate(price_per_buche_grams=p*g) 
+
+# As before, we assume there are 38.91 individual totoaba in a tonne.
+
+# Therefore, 
+
+dat_p <- dat_p %>%
+  mutate(individuals_shipment = q*38.91)
+
+# Each average individual (assuming each individual has a 500 gram buche) is worth the price per  buche
+
+dat_p <- dat_p %>%
+  mutate(shipment_value = individuals_shipment*price_per_buche_grams)
+
+# Calculating new inverse demand
+
+lm <- lm(shipment_value~q, data=dat_p)
+summary(lm)
+
+# new alpha 2465352
+# new beta 425786
 
 ```
