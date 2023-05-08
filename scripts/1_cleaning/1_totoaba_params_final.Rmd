@@ -21,8 +21,8 @@ sigma_own <- 0.0005526788
 # Assume a linear inverse demand function p(q) = alpha - beta * q
 # Where q : totoaba buche (unitless) of mass m in grams
 #
-alpha = 2465352 #choke price (in USD per individual)
-beta = 425786 
+alpha = 2956477 #choke price (in USD per individual)
+beta = 333065 
 
 ```
 

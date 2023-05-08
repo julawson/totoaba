@@ -48,8 +48,8 @@ s <- 34594.88 # price paid to poachers ($USD per tonne of totoaba biomass, assum
 v <- 8828.34 # farming cost parameter ($USD per tonne of totoaba biomass)
 lambda <- 0.75 #gamma
 
-alpha <- 84.39 #inverse demand parameter
-beta <- 16.41 #inverse demand parameter
+alpha <- 2956477 #inverse demand parameter
+beta <- 333065 #inverse demand parameter
   
 initial_x <- 1400 #t of totoaba in 2017
 initial_E <- 2.878333 # Catch-per-unit-effort, Totoaba (tonnes) per Vessel per Year (Median value is 0.4), considering the fishery is active for six months of the year
@@ -154,8 +154,6 @@ v_par <- v_par %>%
   mutate(operating_costs = (maintenance_year+cleaning_year+vessel_maintenance_year+fuel_year+feed+labor+facility_lease+admin)) %>% 
   mutate(operating_costs/capacity_per_sphere_t)
 
-
-
 ```
 
 ```{r demand curve}
@@ -168,14 +166,19 @@ v_par <- v_par %>%
 dat_p <- dat_p %>% 
   mutate(price_per_buche_grams=p*g) 
 
-# As before, we assume there are 38.91 individual totoaba in a tonne.
+# Fine tuning this by calculating the totoaba size that produces each buche size:
+
+dat_p <- dat_p %>%
+  mutate(toto_weight_kg=(g/0.019455253)/1000) %>% 
+  mutate(toto_weight_t=toto_weight_kg/1000) %>% 
+  mutate(number_of_toto=1/toto_weight_t)
 
 # Therefore, 
 
 dat_p <- dat_p %>%
-  mutate(individuals_shipment = q*38.91)
+  mutate(individuals_shipment = q*number_of_toto)
 
-# Each average individual (assuming each individual has a 500 gram buche) is worth the price per  buche
+# Total shipment value is price * number of size-converted individuals
 
 dat_p <- dat_p %>%
   mutate(shipment_value = individuals_shipment*price_per_buche_grams)
@@ -185,7 +188,7 @@ dat_p <- dat_p %>%
 lm <- lm(shipment_value~q, data=dat_p)
 summary(lm)
 
-# new alpha 2465352
-# new beta 425786
+# new alpha 2956477
+# new beta 333065
 
 ```
