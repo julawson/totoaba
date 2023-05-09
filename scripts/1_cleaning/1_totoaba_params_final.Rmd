@@ -38,8 +38,8 @@ theta <- 2 #cost parameter, assumed to be 2 (fixed)
 
 # Estimated parameters, poaching
 P <- 624310.9 # exogenous market price per unit of output ($USD per tonne of totoaba biomass, assuming each totoaba is 25.7 kg and has a 500 g buche)
-s <-  3588.436 # poaching cost parameter, increases proportionally with effort (operational annual cost only, $USD per tonne of totoaba biomass)
-W <- 34594.88 # price paid to poachers ($USD per tonne of totoaba biomass, assuming each totoaba is 25.7 kg and has a 500 g buche)
+s <-  3588.436 # price paid to poachers ($USD per tonne of totoaba biomass, assuming each totoaba is 25.7 kg and has a 500 g buche)
+W <- 34594.88 # poaching cost parameter, increases proportionally with effort (operational annual cost only, $USD per tonne of totoaba biomass)
 
 z <- 2 * W 
 

@@ -64,6 +64,12 @@ s_par <- read.csv(here("data","s_par.csv"))  # Price paid to fishers on beaches,
 ### Calculate s, price paid to poachers ($USD per tonne of totoaba biomass)
 # We assume each totoaba is an average weight of 25.7 kg (and has a 500 gram buche) (this is reflected by averages reported by INAPESCA 2020)
 
+s_par <- s_par %>%
+  mutate(toto_weight_kg=(weight_g_fresh/0.019455253)/1000) %>% 
+  mutate(toto_weight_t=toto_weight_kg/1000) %>% 
+  mutate(number_of_toto=1/toto_weight_t) %>% 
+  mutate(price_per_tonne=number_of_toto*(price_usd_perkg/1000))
+
 # Therefore, there are 38.91 individual totoaba in a tonne.
 
 # Each average individual (assuming each individual has a 500 gram buche) is worth $889.1 USD
