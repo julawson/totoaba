@@ -48,8 +48,8 @@ s <- 34594.88 # price paid to poachers ($USD per tonne of totoaba biomass, assum
 v <- 8828.34 # farming cost parameter ($USD per tonne of totoaba biomass)
 lambda <- 0.75 #gamma
 
-alpha <- 84.39 #inverse demand parameter
-beta <- 16.41 #inverse demand parameter
+alpha <- 2956477 #inverse demand parameter
+beta <- 333065 #inverse demand parameter
   
 initial_x <- 1400 #t of totoaba in 2017
 initial_E <- 2.878333 # Catch-per-unit-effort, Totoaba (tonnes) per Vessel per Year (Median value is 0.4), considering the fishery is active for six months of the year
@@ -72,12 +72,10 @@ s_par <- read.csv(here("data","s_par.csv"))  # Price paid to fishers on beaches,
 
 #Equation used to estimate value of a 500 gram buche:
 lm <- lm(price_usd_perkg~weight_kg_fresh, data=s_par)
-summary(lm)1400
+summary(lm)
 
 ggplot(aes(y=price_usd_perkg, x=weight_kg_fresh), data=s_par) +
   geom_point()
-
-
 
 ### Now calculating P, exogenous market price per unit of output ($USD per tonne of totoaba biomass)
 
@@ -149,6 +147,8 @@ c_par_val <- w_par_ops %>%
 ```{r farming costs}
 
 v_par <- read.csv(here("data","v_par.csv")) # Farming cost data, from Buche Bros
+aqua_par_w <- read.csv(here("data","aqua_par_wild.csv"))
+aqua_par_f <- read.csv(here("data","aqua_par_farm.csv"))
 
 v_par <- v_par %>% 
   mutate(operating_costs = (maintenance_year+cleaning_year+vessel_maintenance_year+fuel_year+feed+labor+facility_lease+admin)) %>% 
@@ -158,6 +158,37 @@ v_par <- v_par %>%
 
 ```{r demand curve}
 
-lm(p~q, data=dat_p)
+# p is price per gram for end-market prices in 2019 USD
+# q is metric tonnes of dried buche from the fishery
+
+# Step 1. Convert price per gram to price per tonne
+
+dat_p <- dat_p %>% 
+  mutate(price_per_buche_grams=p*g) 
+
+# Fine tuning this by calculating the totoaba size that produces each buche size:
+
+dat_p <- dat_p %>%
+  mutate(toto_weight_kg=(g/0.019455253)/1000) %>% 
+  mutate(toto_weight_t=toto_weight_kg/1000) %>% 
+  mutate(number_of_toto=1/toto_weight_t)
+
+# Therefore, 
+
+dat_p <- dat_p %>%
+  mutate(individuals_shipment = q*number_of_toto)
+
+# Total shipment value is price * number of size-converted individuals
+
+dat_p <- dat_p %>%
+  mutate(shipment_value = individuals_shipment*price_per_buche_grams)
+
+# Calculating new inverse demand
+
+lm <- lm(shipment_value~q, data=dat_p)
+summary(lm)
+
+# new alpha 2956477
+# new beta 333065
 
 ```

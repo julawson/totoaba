@@ -15,7 +15,7 @@ library(rootSolve)
 K = 20226 # Carrying capacity (in tonnes)
 avg_weight = 28 # Individual average weight (in kilograms)
 K_ind = K*1000/avg_weight # Carrying capacity in individuals (unitless)
-r = .23 # Population growth rate (unitless)
+r = 0.23 # Population growth rate (unitless) -- the value I found in the Upsides database is 0.039 (much lower)
 
 # II. Demand characteristics ########
 # Assume a linear inverse demand function p(q) = alpha - beta * q
@@ -37,5 +37,5 @@ c = 1208.372 # (in USD)
 
 
 # Save parameters from calibration to data folder ####
-parameters = data.frame(K, avg_weight, K_ind, r, alpha, beta, W, sigma, c)
-write.csv(parameters, file = paste0(here(),'/data/params_simul.csv'))
+parameters = as.data.frame(K, avg_weight, K_ind, r, alpha, beta, W, sigma, c)
+write_csv(parameters, here("data","params_simul.csv"))

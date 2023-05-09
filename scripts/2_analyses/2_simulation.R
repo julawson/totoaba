@@ -12,7 +12,7 @@ library(rootSolve)
 ####################################################################################################################
 
 # Step 1 : Initial simulation from calibration #####
-parameters = read.csv(paste0(here(), '/data/params_simul.csv'))
+parameters = read.csv(here("data", "params_simul.csv"))
 
 x = seq(1, 
         parameters$K_ind,
@@ -116,3 +116,4 @@ for (i in length(params_df)){
   
   # Find a clever way to record steady states, i.e when diff gets to 0
 }
+
