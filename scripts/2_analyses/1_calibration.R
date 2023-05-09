@@ -27,7 +27,7 @@ beta = 50
 # III. Cost & engineering characteristics ######
 # A. For poachers : 
 # Profit is : wage/fish * number of fish - W*Effort^2
-W = 3588.436 # Wage (USD per unit of fish)
+W = 3588.436 # cost parameter (USD per unit of fish)
 # Catchability 
 sigma = .1 #(unitless)
 
