@@ -62,26 +62,31 @@ P_par <- read.csv(here("data","P_par.csv")) # Price in end-markets, from INAPESC
 s_par <- read.csv(here("data","s_par.csv"))  # Price paid to fishers on beaches, from INAPESCA Fig 4.4
 
 ### Calculate s, price paid to poachers ($USD per tonne of totoaba biomass)
-# We assume each totoaba is an average weight of 25.7 kg (and has a 500 gram buche) (this is reflected by averages reported by INAPESCA 2020)
 
 s_par <- s_par %>%
   mutate(toto_weight_kg=(weight_g_fresh/0.019455253)/1000) %>% 
+  mutate(weight_kg_fresh=weight_g_fresh/1000) %>% 
   mutate(toto_weight_t=toto_weight_kg/1000) %>% 
   mutate(number_of_toto=1/toto_weight_t) %>% 
-  mutate(price_per_tonne=number_of_toto*(price_usd_perkg/1000))
+  mutate(price_per_t=number_of_toto*(price_usd_perkg))
 
-# Therefore, there are 38.91 individual totoaba in a tonne.
+# Therefore, we convert swim bladder weight to totoaba weight assuming that the swim bladder makes up 1.95% of adult weight
 
-# Each average individual (assuming each individual has a 500 gram buche) is worth $889.1 USD
+# To calculate a single value for 's' we assume each totoaba is an average weight of 25.7 kg (and has a 500 gram buche) (this is reflected by averages reported by INAPESCA 2020)
 
-# Therefore, 38.91 individuals x $889.1 USD = $34,594.88 USD/tonne of totoaba
+# We multiple number of individuals that make up one tonne x price per tonne USD = to get $USD/tonne totoaba
 
-#Equation used to estimate value of a 500 gram buche:
+# Lastly, we estimate the average price paid to poachers for the average swim bladder (a 500 gram swim bladder)
+
+# 38.91051 individual totoaba per tonne (of size 25.7 kg, producing a 500 gram swim bladder) x $889.1 USD/kilogram = $34,594.88 USD/tonne of totoaba
+
 lm <- lm(price_usd_perkg~weight_kg_fresh, data=s_par)
 summary(lm)
 
 ggplot(aes(y=price_usd_perkg, x=weight_kg_fresh), data=s_par) +
   geom_point()
+
+
 
 ### Now calculating P, exogenous market price per unit of output ($USD per tonne of totoaba biomass)
 
