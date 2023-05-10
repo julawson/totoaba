@@ -131,9 +131,11 @@ s_c_paper = function(alpha_w, alpha_f, beta_f, beta_w, gamma, W, c, v, sigma, x)
 }
 # Equilibrium poacher wage recomputed
 s_c_own = function(alpha_w, alpha_f, beta_f, beta_w, gamma, W, c, v, sigma, x){
-  y = (2*W*(2*beta_f*(alpha_w - c) - gamma*(alpha_f + v)))/((sigma^2)*(x^2)*(4*beta_f*beta_w - gamma^2) + 4*beta_f*W)
+  y = (2*W*(2*beta_f*(alpha_w - c) - gamma*(alpha_f - v)))/((sigma^2)*(x^2)*(4*beta_f*beta_w - gamma^2) + 4*beta_f*W)
   return(y)
 }
+
+s_c_own_use = s_c_own(alpha_w, alpha_f, beta_f, beta_w, gamma, W, c, v, sigma_own, x)
 
 # Store results
 results  = results %>% mutate(wage_cournot_paper = s_c_paper(alpha_w, alpha_f, beta_f, beta_w, gamma, W, c, v, sigma_min, x),
@@ -148,8 +150,7 @@ results %>% ggplot(aes(x=x))+
   xlab('Stock (x)')+
   scale_color_manual(values = c('red','blue'))+
   theme_bw()
-# End up with a big magnitude difference, and a crossing.
-
+# End up with a big magnitude difference
 
 ###### C. Supply and demand functions : ##########
 # Not the same mathematical results
@@ -173,9 +174,11 @@ q_cournot_farmed_own = function(sigma, x, alpha_f, alpha_w, beta_f, beta_w, gamm
 
 # Recompute the farmer's production function with wage: 
 q_farmed_cournot = function(alpha_w, alpha_f, beta_w, beta_f, s, c, v, gamma){
-  y = (2*beta_w * (alpha_f - v) - gamma*(alpha_w - s - c))/(4*beta_w*beta_f - gamma^2)
+  y = (2 * beta_w * (alpha_f - v) - gamma* (alpha_w - (s + c)) )/(4*beta_w*beta_f - gamma^2)
 }
-results  = results %>% mutate(q_farmed_cournot_with_wage = q_farmed_cournot(alpha_w, alpha_f, beta_w, beta_f, s_c_own(alpha_w, alpha_f, beta_f, beta_w, gamma, W, c, v, sigma_own, x), c, v, gamma))
+
+# Store results
+results  = results %>% mutate(q_farmed_cournot_with_wage = q_farmed_cournot(alpha_w, alpha_f, beta_w, beta_f, s_c_own_use, c, v, gamma))
 
 results = results %>% mutate(q_cournot_wild_og = q_cournot_wild_paper(sigma_own, x, alpha_f, alpha_w, beta_f, beta_w, gamma, c, v, W),
                              q_cournot_wild_own = q_cournot_wild_own(sigma_own, x, alpha_f, alpha_w, beta_f, beta_w, gamma, c, v, W),
@@ -212,7 +215,9 @@ results %>% mutate(ss_cournot_own = growth - q_cournot_wild_own) %>%
 # With our result, we only have a high steady state at 91370, with sigma = sigma_own
 
 results %>% mutate(ss_cournot_own = growth - q_cournot_wild_og) %>%
-  subset(ss_cournot_own > -0.1 & ss_cournot_own < 0.1)
+  subset(ss_cournot_own > -0.1 & ss_cournot_own < 0.1)%>%
+  select(x, ss_cournot_own)
+
 # With their result : 3 steady states : 
 # - 1344
 # - 7298
@@ -316,7 +321,7 @@ s_b_paper = function(a_f, a_w, b_f, b_w, c, e, v, W, sigma, x){
 
 # recomputed wage
 s_b_own = function(a_f, a_w, b_f, b_w, c, e, v, W, sigma, x){
-  y = (2*W*b_w*( b_f*(2*a_w + e*v) + c*(e^2 - 2*b_f*b_w) + e*a_f))/((sigma^2)*(x^2)*(4*b_f*b_w - (e^2)) + 2*W*b_w*(2*b_w*b_f - (e^2)))
+  y = (2*W*b_w*( b_f*(2*a_w + e*v) + c*((e^2) - 2*b_f*b_w) + e*a_f))/((sigma^2)*(x^2)*(4*b_f*b_w - (e^2)) + 2*W*b_w*(2*b_w*b_f - (e^2)))
   return(y)
 }
 

@@ -1,0 +1,64 @@
+
+# Step 1. Calculating all totoaba parameters for base case.
+
+```{r load libraries}
+
+library(here)
+library(tidyverse)
+
+```
+
+```{r growth parameters}
+
+# Define the parameters for the biological resource
+r <- 0.039 #from Upsides database (may need to be updated)
+k <- 20226 #carrying capacity (biomass in t) (source: INAPESCA)
+sigma_max <- 0.5526788 #catchability (needs to be effort per tonne of biomass) (source: INAPESCA via Andrew)
+sigma_min <- 0.0005526788
+sigma_own <- 0.0005526788
+
+# II. Demand characteristics ########
+# Assume a linear inverse demand function p(q) = alpha - beta * q
+# Where q : totoaba buche (unitless) of mass m in grams
+#
+alpha = 2956477 #choke price (in USD per individual)
+beta = 333065 
+
+```
+
+
+```{r poaching parameters}
+
+# Define the parameters for the poaching effort
+# Fixed parameters
+n <- 0.1
+theta <- 2 #cost parameter, assumed to be 2 (fixed)
+
+# Profit is : wage/fish * number of fish - W*Effort^2 ** Could be an issue here.
+
+# Estimated parameters, poaching
+P <- 624310.9 # exogenous market price per unit of output ($USD per tonne of totoaba biomass, assuming each totoaba is 25.7 kg and has a 500 g buche)
+s <-  3588.436 # price paid to poachers ($USD per tonne of totoaba biomass, assuming each totoaba is 25.7 kg and has a 500 g buche)
+W <- 34594.88 # poaching cost parameter, increases proportionally with effort (operational annual cost only, $USD per tonne of totoaba biomass)
+
+z <- 2 * W 
+
+# Traders
+c <- 1208.372 #cost of trading, all the costs associated with the transportation and final sale of wild animal products (assumed to be annual probability of gear or vessel confiscation, or arrest)
+
+# Estimated parameters, farming
+v <- 8828.34 # farming cost parameter ($USD per tonne of totoaba biomass)
+lambda <- 0.75 #gamma
+  
+initial_x <- 1400 #t of totoaba in 2017
+initial_E <- 2.878333 # Catch-per-unit-effort, Totoaba (tonnes) per Vessel per Year (Median value is 0.4), considering the fishery is active for six months of the year
+
+```
+
+```{r dataframe}
+
+base_params <- data.frame (value=c(r, K, sigma, alpha, beta, n, theta, z, P, W, s, c, v, lambda, initial_x, initial_E),
+                           name=c("r", "K", "sigma", "alpha", "beta", "n", "theta", "z", "P", "W", "s", "c", "v", "lambda", "initial_x", "initial_E"))
+write_csv(parameters, here("data","base_params.csv"))
+
+```

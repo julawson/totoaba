@@ -24,8 +24,8 @@ dat_pars <- read.csv(here("data","andrew","dat_pars.csv")) %>% mutate(across(4:6
 
 # Define the parameters for the biological resource
 r <- 0.23 #intrinsic rate of population increase ** (Needed: Ere)
-k <- 20226 #carrying capacity (biomass in t)
-theta <- 0.001 #catchability (needs to be effort per tonne of biomass) ** (Needed: Ere)
+k <- 20226 #carrying capacity (biomass in t) (source: INAPESCA)
+theta <- 0.0005526788 #catchability (needs to be effort per tonne of biomass) (source: INAPESCA via Andrew)
 
 ```
 
@@ -48,8 +48,8 @@ s <- 34594.88 # price paid to poachers ($USD per tonne of totoaba biomass, assum
 v <- 8828.34 # farming cost parameter ($USD per tonne of totoaba biomass)
 lambda <- 0.75 #gamma
 
-alpha <- 84.39 #inverse demand parameter
-beta <- 16.41 #inverse demand parameter
+alpha <- 2956477 #inverse demand parameter
+beta <- 333065 #inverse demand parameter
   
 initial_x <- 1400 #t of totoaba in 2017
 initial_E <- 2.878333 # Catch-per-unit-effort, Totoaba (tonnes) per Vessel per Year (Median value is 0.4), considering the fishery is active for six months of the year
@@ -62,15 +62,24 @@ P_par <- read.csv(here("data","P_par.csv")) # Price in end-markets, from INAPESC
 s_par <- read.csv(here("data","s_par.csv"))  # Price paid to fishers on beaches, from INAPESCA Fig 4.4
 
 ### Calculate s, price paid to poachers ($USD per tonne of totoaba biomass)
-# We assume each totoaba is an average weight of 25.7 kg (and has a 500 gram buche) (this is reflected by averages reported by INAPESCA 2020)
 
-# Therefore, there are 38.91 individual totoaba in a tonne.
+s_par <- s_par %>%
+  mutate(toto_weight_kg=(weight_g_fresh/0.019455253)/1000) %>% 
+  mutate(weight_kg_fresh=weight_g_fresh/1000) %>% 
+  mutate(toto_weight_t=toto_weight_kg/1000) %>% 
+  mutate(number_of_toto=1/toto_weight_t) %>% 
+  mutate(price_per_t=number_of_toto*(price_usd_perkg))
 
-# Each average individual (assuming each individual has a 500 gram buche) is worth $889.1 USD
+# Therefore, we convert swim bladder weight to totoaba weight assuming that the swim bladder makes up 1.95% of adult weight
 
-# Therefore, 38.91 individuals x $889.1 USD = $34,594.88 USD/tonne of totoaba
+# To calculate a single value for 's' we assume each totoaba is an average weight of 25.7 kg (and has a 500 gram buche) (this is reflected by averages reported by INAPESCA 2020)
 
-#Equation used to estimate value of a 500 gram buche:
+# We multiple number of individuals that make up one tonne x price per tonne USD = to get $USD/tonne totoaba
+
+# Lastly, we estimate the average price paid to poachers for the average swim bladder (a 500 gram swim bladder)
+
+# 38.91051 individual totoaba per tonne (of size 25.7 kg, producing a 500 gram swim bladder) x $889.1 USD/kilogram = $34,594.88 USD/tonne of totoaba
+
 lm <- lm(price_usd_perkg~weight_kg_fresh, data=s_par)
 summary(lm)
 
@@ -149,6 +158,8 @@ c_par_val <- w_par_ops %>%
 ```{r farming costs}
 
 v_par <- read.csv(here("data","v_par.csv")) # Farming cost data, from Buche Bros
+aqua_par_w <- read.csv(here("data","aqua_par_wild.csv"))
+aqua_par_f <- read.csv(here("data","aqua_par_farm.csv"))
 
 v_par <- v_par %>% 
   mutate(operating_costs = (maintenance_year+cleaning_year+vessel_maintenance_year+fuel_year+feed+labor+facility_lease+admin)) %>% 
@@ -158,6 +169,37 @@ v_par <- v_par %>%
 
 ```{r demand curve}
 
-lm(p~q, data=dat_p)
+# p is price per gram for end-market prices in 2019 USD
+# q is metric tonnes of dried buche from the fishery
+
+# Step 1. Convert price per gram to price per tonne
+
+dat_p <- dat_p %>% 
+  mutate(price_per_buche_grams=p*g) 
+
+# Fine tuning this by calculating the totoaba size that produces each buche size:
+
+dat_p <- dat_p %>%
+  mutate(toto_weight_kg=(g/0.019455253)/1000) %>% 
+  mutate(toto_weight_t=toto_weight_kg/1000) %>% 
+  mutate(number_of_toto=1/toto_weight_t)
+
+# Therefore, 
+
+dat_p <- dat_p %>%
+  mutate(individuals_shipment = q*number_of_toto)
+
+# Total shipment value is price * number of size-converted individuals
+
+dat_p <- dat_p %>%
+  mutate(shipment_value = individuals_shipment*price_per_buche_grams)
+
+# Calculating new inverse demand
+
+lm <- lm(shipment_value~q, data=dat_p)
+summary(lm)
+
+# new alpha 2956477
+# new beta 333065
 
 ```
