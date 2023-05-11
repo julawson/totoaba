@@ -1,0 +1,141 @@
+---
+title: "parameters_SJ"
+author: "Simon Jean"
+date: "2023-05-11"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = F)
+library(tidyverse)
+library(here)
+```
+
+# Demand estimation
+## Preliminary analysis : descriptive states
+
+```{r load data, echo = F}
+dat_p = read.csv(here("data","andrew","dat_p.csv")) #Price-quantity data (OG Paper)
+dat_b = read.csv(here('data', 'andrew', "dat_bc.csv"))
+```
+
+First, look at the evolution of average weight per year : 
+```{r avg weight, echo = F}
+dat_p %>% 
+  group_by(year) %>%
+ summarise_at(vars(kg), list(name = mean))%>%
+  ggplot(aes(x = year,  y = name))+
+  geom_point()+
+  theme_bw()+
+  ylab('Avg weight')
+```
+
+Observe a decrease of average weight. Second, look at the evolution of price per buche through time.
+
+```{r pressure, echo=FALSE}
+dat_p = dat_p %>%
+  mutate(price_buche = g*p,
+         price_kg = p*1000)
+dat_p %>%
+  ggplot(aes(x=year))+
+  geom_point(aes(y = price_buche))+
+  theme_bw()
+```
+
+1. Variance of prices decreases with time
+2. Average decreases
+
+Conclusion : it seems like the market has evolved. It is hard to say whether (i) there was a crackdown a decrease in demand or (ii) supply increased. 
+
+## Data reformating
+First, recover individual totoaba poached from dried buche data. To do so: 
+
+1. q is dried totoaba buche in tonnes : q*1000 is tonnes of dried totoaba buche
+2. Given that we assume uniform distribution of totoaba size and that 1 totoaba = 500g of dried totoaba dried totoaba in kilos / 0.5 kilos -> Number of totoaba
+3. Compare that to catch data, under the assumption of uniform distribution of size of caught totoaba, all weigh  25.7 kg.
+```{r, echo =F}
+dat_p = dat_p %>% mutate(totoaba = (q*1000)/.5)
+dat_b = dat_b %>% mutate(totoaba = (c*1000/25.7))
+
+data.frame( totoaba_est = dat_p %>% select(totoaba) %>% unique() %>% pull(),
+            totoaba_obs = dat_b %>% subset(y>2013) %>% select(totoaba)%>%pull(),
+            year = c(2014, 2015, 2016, 2017))%>%
+  ggplot(aes(x=year))+
+  geom_line(aes(y = totoaba_est, colour= 'Recovered from dat_p'), linewidth = 1.1)+
+  geom_line(aes(y = totoaba_obs, colour = 'Observed catch'), linewidth = 1.1)
+  
+```
+
+There is a big difference between estimates! Maybe it makes more sense to use price data per buche and observed catch. 
+
+### Attempt 1 : use price per totoaba and variation in realized catch
+```{r}
+dat_b %>% subset(y>2013)%>%
+  ggplot(aes(x=y, y= totoaba))+
+  geom_point()+
+  theme_bw()
+```
+
+In what follows : 
+
+* I use the variations in price per totoaba calculated as `price_per_totoaba = p*g` from `dat_p`. 
+
+* I use the variations in realized catch from `dat_bc`, converted to totoaba individuals assuming uniform weight distribution (`tototaba = c*1000/25.7`)
+
+```{r}
+results = data.frame()
+new_dat = merge(dat_b %>% subset(y>2013) %>% select(y,totoaba) %>%rename(year=y), dat_p %>% select(year, price_buche))
+model = lm(price_buche ~ totoaba, data = new_dat)
+summary(model)
+
+demand = function(totoaba){
+  y = model$coefficients[1] + model$coefficients[2]*totoaba
+  return(y)
+}
+
+data.frame(x = seq(1,max(dat_b %>% subset(y>2013)%>%select(totoaba)))) %>%
+  mutate(demand = demand(x))%>%
+  ggplot(aes(x = x, y = demand))+
+  geom_line()+
+  xlab('Number of totoabas caught (unitless)')+
+  ylab('Price (2019 $USD)')+
+  theme_bw()
+
+results = results %>% rbind(model$coefficients)
+```
+
+### Attempt 2 : Use price per totoaba and variation in estimated catch (converting dried buche tons to live totoaba)
+
+Just to make sure we have results that are not too weird, I regress price on estimated catch. 
+
+
+```{r}
+new_dat = dat_p %>% select(price_buche, totoaba)
+model = lm(price_buche ~ totoaba, data = new_dat)
+summary(model)
+
+demand = function(totoaba){
+  y = model$coefficients[1] + model$coefficients[2]*totoaba
+  return(y)
+}
+
+data.frame(x = seq(1,max(dat_b %>% subset(y>2013)%>%select(totoaba)))) %>%
+  mutate(demand = demand(x))%>%
+  ggplot(aes(x = x, y = demand))+
+  geom_line()+
+  xlab('Number of totoabas caught (unitless)')+
+  ylab('Price (2019 $USD)')+
+  theme_bw()+
+  geom_hline(yintercept=0)
+
+results = results %>% rbind(model$coefficients)
+```
+
+In the end, we get two demand models : 
+```{r}
+colnames(results) = c('Intercept (alpha)', 'beta')
+print(results)
+```
+
+I think the one with estimated quantities of live totoabas in metric tonnes is more reliable. 
+
