@@ -1,5 +1,5 @@
 ---
-title: "parameters_SJ"
+title: "Parameters estimation for calibration"
 author: "Simon Jean"
 date: "2023-05-11"
 output: html_document
@@ -11,8 +11,8 @@ library(tidyverse)
 library(here)
 ```
 
-# Demand estimation
-## Preliminary analysis : descriptive states
+# I. Demand estimation
+## A. Preliminary analysis : descriptive stats
 
 ```{r load data, echo = F}
 dat_p = read.csv(here("data","andrew","dat_p.csv")) #Price-quantity data (OG Paper)
@@ -30,7 +30,7 @@ dat_p %>%
   ylab('Avg weight')
 ```
 
-Observe a decrease of average weight. Second, look at the evolution of price per buche through time.
+Observe a decrease of average weight. Second, look at the evolution of price per buche through time. To do so, I compute the product of `p` and `g` (price/gram * grams of buche).
 
 ```{r pressure, echo=FALSE}
 dat_p = dat_p %>%
@@ -47,12 +47,26 @@ dat_p %>%
 
 Conclusion : it seems like the market has evolved. It is hard to say whether (i) there was a crackdown a decrease in demand or (ii) supply increased. 
 
-## Data reformating
+That goes along with what follows : the catch has increased for years we have data for : 
+```{r}
+dat_b %>% subset(y>2013)%>%
+  ggplot(aes(x=y, y= c))+
+  geom_point(size = 2)+
+  theme_bw()+
+  ylab("Wet catch in metric tons")+
+  xlab('Year')
+```
+Assuming a constant demand, we can leverage that change in supply to estimate the demand function. 
+
+## B. Data reformating
 First, recover individual totoaba poached from dried buche data. To do so: 
 
-1. q is dried totoaba buche in tonnes : q*1000 is tonnes of dried totoaba buche
+1. `q` in `dat_p` is dried totoaba buche in tonnes : q*1000 is tonnes of dried totoaba buche
 2. Given that we assume uniform distribution of totoaba size and that 1 totoaba = 500g of dried totoaba dried totoaba in kilos / 0.5 kilos -> Number of totoaba
-3. Compare that to catch data, under the assumption of uniform distribution of size of caught totoaba, all weigh  25.7 kg.
+3. Compare that to catch data :
+
++ In `dat_p`, take `c` catch data in metric tonnes and convert to kilos (`c*1000`)
++ Under the assumption of uniform distribution of size of caught totoaba, all weigh  25.7 kg (divide catch in kilos by average weight)
 ```{r, echo =F}
 dat_p = dat_p %>% mutate(totoaba = (q*1000)/.5)
 dat_b = dat_b %>% mutate(totoaba = (c*1000/25.7))
@@ -68,13 +82,8 @@ data.frame( totoaba_est = dat_p %>% select(totoaba) %>% unique() %>% pull(),
 
 There is a big difference between estimates! Maybe it makes more sense to use price data per buche and observed catch. 
 
-### Attempt 1 : use price per totoaba and variation in realized catch
-```{r}
-dat_b %>% subset(y>2013)%>%
-  ggplot(aes(x=y, y= totoaba))+
-  geom_point()+
-  theme_bw()
-```
+### C. Attempt 1 : use price per totoaba and variation in realized catch
+
 
 In what follows : 
 
@@ -104,7 +113,7 @@ data.frame(x = seq(1,max(dat_b %>% subset(y>2013)%>%select(totoaba)))) %>%
 results = results %>% rbind(model$coefficients)
 ```
 
-### Attempt 2 : Use price per totoaba and variation in estimated catch (converting dried buche tons to live totoaba)
+### D. Attempt 2 : Use price per totoaba and variation in estimated catch (converting dried buche tons to live totoaba)
 
 Just to make sure we have results that are not too weird, I regress price on estimated catch. 
 
@@ -137,5 +146,11 @@ colnames(results) = c('Intercept (alpha)', 'beta')
 print(results)
 ```
 
-I think the one with estimated quantities of live totoabas in metric tonnes is more reliable. 
+We keep the first model as it seems more pertinent. 
+```{r}
+results = results[1,]
+```
+
+# II. Cost data
+## A. Poacher cost data
 
