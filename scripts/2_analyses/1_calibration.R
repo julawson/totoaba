@@ -12,8 +12,8 @@ library(rootSolve)
 ####################################################################################################################
 
 # I. Totoaba growth #######
+avg_weight = 25.7 # Individual average weight (in kilograms)
 K = 20226 # Carrying capacity (in tonnes)
-avg_weight = 28 # Individual average weight (in kilograms)
 K_ind = K*1000/avg_weight # Carrying capacity in individuals (unitless)
 r = 0.23 # Population growth rate (unitless) -- the value I found in the Upsides database is 0.039 (much lower)
 
