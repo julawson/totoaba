@@ -8,7 +8,7 @@ library(ggplot2)
 library(rootSolve)
 
 ####################################################################################################################
-# Model for Damania, Bulte - The economics of wildlife farming and endangered species conservation - 2005
+# Model for Damania, Bulte - The economics of wildlife farming and endangered species conservation - 2007
 ####################################################################################################################
 
 ### I. Parameters #####

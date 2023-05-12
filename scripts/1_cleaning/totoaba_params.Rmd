@@ -62,20 +62,31 @@ P_par <- read.csv(here("data","P_par.csv")) # Price in end-markets, from INAPESC
 s_par <- read.csv(here("data","s_par.csv"))  # Price paid to fishers on beaches, from INAPESCA Fig 4.4
 
 ### Calculate s, price paid to poachers ($USD per tonne of totoaba biomass)
-# We assume each totoaba is an average weight of 25.7 kg (and has a 500 gram buche) (this is reflected by averages reported by INAPESCA 2020)
 
-# Therefore, there are 38.91 individual totoaba in a tonne.
+s_par <- s_par %>%
+  mutate(toto_weight_kg=(weight_g_fresh/0.019455253)/1000) %>% 
+  mutate(weight_kg_fresh=weight_g_fresh/1000) %>% 
+  mutate(toto_weight_t=toto_weight_kg/1000) %>% 
+  mutate(number_of_toto=1/toto_weight_t) %>% 
+  mutate(price_per_t=number_of_toto*(price_usd_perkg))
 
-# Each average individual (assuming each individual has a 500 gram buche) is worth $889.1 USD
+# Therefore, we convert swim bladder weight to totoaba weight assuming that the swim bladder makes up 1.95% of adult weight
 
-# Therefore, 38.91 individuals x $889.1 USD = $34,594.88 USD/tonne of totoaba
+# To calculate a single value for 's' we assume each totoaba is an average weight of 25.7 kg (and has a 500 gram buche) (this is reflected by averages reported by INAPESCA 2020)
 
-#Equation used to estimate value of a 500 gram buche:
+# We multiple number of individuals that make up one tonne x price per tonne USD = to get $USD/tonne totoaba
+
+# Lastly, we estimate the average price paid to poachers for the average swim bladder (a 500 gram swim bladder)
+
+# 38.91051 individual totoaba per tonne (of size 25.7 kg, producing a 500 gram swim bladder) x $889.1 USD/kilogram = $34,594.88 USD/tonne of totoaba
+
 lm <- lm(price_usd_perkg~weight_kg_fresh, data=s_par)
 summary(lm)
 
 ggplot(aes(y=price_usd_perkg, x=weight_kg_fresh), data=s_par) +
   geom_point()
+
+
 
 ### Now calculating P, exogenous market price per unit of output ($USD per tonne of totoaba biomass)
 
@@ -104,6 +115,7 @@ summary(lm_P_par_kg)
 # Calculating initial Aggregate Poaching Effort, E
 E_par <- read.csv(here("data","E_par.csv")) # Effort breakdown, from INAPESCA Fig 4.2
 w_par <- read.csv(here("data","w_par.csv")) # Cost data, from Buche Bros
+c_par <- read.csv(here("data","c_par.csv")) #Cost data, from Buche Bros
 
 E_par <- E_par %>% 
   mutate(days_permonth = (days_perweek*weeks_permonth)) %>% 
@@ -122,25 +134,48 @@ E_val <- E_par %>%
 # x axis should be effort (number of vessels)
 # y axis should be cost per vessel
 
-#Step one, get all operating costs into cost per tonne of totoaba
+#Step one, get all annual operating costs
+
+# Goal is to calculate cost per vessel trip (we have total fleet days per year which is number of vessels * fishing days per month)
+
+# First calculate total annual costs for the entire fleet
 
 w_par_ops <- w_par %>% 
-  mutate(operating_cost_permonth = (bribe_permonth+ foodfuel_permonth + gear_replacement_permonth)) %>% #monthly operating costs
-  mutate(cost_per_t_totoaba = operating_cost_permonth/totoaba_t_per_vessel) %>%  #operating cost per tonne of totoaba
-  mutate(wages_per_t_totoaba = price_poachers_per_t*0.75) %>% 
-  mutate(running_cost = cost_per_t_totoaba+wages_per_t_totoaba) %>% 
-  mutate_at(vars(running_cost), ~replace(., is.nan(.), 0)) 
+  mutate(cost_crew_earnings = (totoaba_year * price_fishers_per_totoaba * monthly_earnings_paid)) %>% 
+  mutate(cost_food_fuel = (foodfuel_day * total_fleet_days_year)) %>% 
+  mutate(cost_gear = total_fleet_days_year*(gear_loss_day*gear_replacement)) %>% 
+  mutate(revenue_per_month = (totoaba_year*(price_fishers_per_totoaba)) - (cost_crew_earnings-cost_food_fuel-cost_gear))
+
+# Next, divide by total fishing days per year
 
 w_par_val <- w_par_ops %>% 
-  summarize(median=median(running_cost),
-            mean=mean(running_cost))
+  select(vessels, totoaba_day, total_fleet_days_year,cost_crew_earnings,cost_food_fuel,cost_gear,revenue_per_month) %>% 
+  mutate(cost_per_trip = (cost_crew_earnings + cost_food_fuel + cost_gear)/total_fleet_days_year) %>% 
+  mutate(cost_per_totoaba_per_trip = cost_per_trip/totoaba_day) %>% 
+  mutate(revenue_per_trip=revenue_per_month/total_fleet_days_year) %>% 
+  mutate(diff=revenue_per_trip-cost_per_trip)
+
+# Calculate mean values
+
+w_par_av <- w_par_val %>% 
+  #filter(vessels > 1) %>% 
+  mutate_at(vars(cost_per_trip), ~replace(., is.nan(.), 0)) %>% 
+  mutate_at(vars(cost_per_totoaba_per_trip), ~replace(., is.nan(.), 0)) %>% 
+  summarize(av_cost_per_trip=mean(cost_per_trip),
+         av_cost_per_totoaba_per_trip=mean(cost_per_totoaba_per_trip))
 
 # Step two, add in probability of enforcement action (i.e. fines, gear, or vessel confiscation)
 # Treating step two as a calculation of c, cost of trading
 
-c_par_val <- w_par_ops %>% 
-  mutate(running_cost_c=((prob_fine*fine) +(prob_gear_conf*gear_conf)+(prob_vessel_conf*vessel_cost)))
+# Cost to cartels
 
+# First calculate total annual costs for the entire fleet
+
+# Now calculating cost per trip and cost per totoaba 
+
+c_par_val <- c_par %>%
+  mutate(cost_per_trip=total_cost/vesseldays_year) %>% 
+  mutate(cost_per_totoaba=total_cost/totoaba_year)
 
 ```
 
