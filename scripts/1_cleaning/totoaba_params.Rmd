@@ -115,6 +115,7 @@ summary(lm_P_par_kg)
 # Calculating initial Aggregate Poaching Effort, E
 E_par <- read.csv(here("data","E_par.csv")) # Effort breakdown, from INAPESCA Fig 4.2
 w_par <- read.csv(here("data","w_par.csv")) # Cost data, from Buche Bros
+c_par <- read.csv(here("data","c_par.csv")) #Cost data, from Buche Bros
 
 E_par <- E_par %>% 
   mutate(days_permonth = (days_perweek*weeks_permonth)) %>% 
@@ -166,11 +167,15 @@ w_par_av <- w_par_val %>%
 # Step two, add in probability of enforcement action (i.e. fines, gear, or vessel confiscation)
 # Treating step two as a calculation of c, cost of trading
 
-# cost to cartels
+# Cost to cartels
 
-c_par_val <- w_par_ops %>% 
-  mutate(running_cost_c=((prob_fine*fine) +(prob_gear_conf*gear_conf)+(prob_vessel_conf*vessel_cost)))
+# First calculate total annual costs for the entire fleet
 
+# Now calculating cost per trip and cost per totoaba 
+
+c_par_val <- c_par %>%
+  mutate(cost_per_trip=total_cost/vesseldays_year) %>% 
+  mutate(cost_per_totoaba=total_cost/totoaba_year)
 
 ```
 
