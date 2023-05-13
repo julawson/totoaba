@@ -146,11 +146,129 @@ colnames(results) = c('Intercept (alpha)', 'beta')
 print(results)
 ```
 
-We keep the first model as it seems more pertinent. 
+We keep the first model as it seem"s more pertinent. 
 ```{r}
 results = results[1,]
 ```
 
 # II. Cost data
 ## A. Poacher cost data
+From this section : need to get `W`, the cost parameters of the profit functions. We assume that the measure of effort is the number of trips per year.
+```{r}
+df_wild = read.csv(here('data', 'w_par.csv'))
+W = 8215
+c = 68
+results = results %>% cbind(W,c)
+print(results)
+```
+
+## B. Farming cost
+
+```{r}
+df_farm = read.csv(here("data", "aqua_par_farm.csv"))
+df_farm = df_farm %>%
+  mutate(cost_per_toto = Cost_feed_kgyear/Number_Individuals)
+df_farm %>% ggplot(aes(x=Totoaba_Age))+
+  geom_point(aes(y=cost_per_toto, colour = 'Cost'))
+```
+
+# III. Fish parameters
+
+Julia has set up the growth and catchability parameters
+```{r}
+
+r = 0.039
+k = 20226 # in metric tons of biomass from INAPESCA
+k_ = k*1000/25.7
+
+catchability = # in vessel trips ^-1
+
+
+results = results %>% cbind(r, k_, catchability)
+```
+
+# IV. Estimating W
+
+From Julia's calculation, we have average cost. Now the procedure is to find the $W$ parameter that minimizes the difference between a straight cost and a quadratic cost. 
+
+```{r}
+
+
+# Define coefficients for average costs in different estimation scenarios
+avg_cost = 8215.34
+min_cost = 3992.27
+max_cost = 13327.92
+
+# Define the number of trips as a continuous variable that ranges from 0 to realized trips majored by 50%
+values_W = data.frame()
+
+for (x in c(1, 1.2, 1.5)){
+  trips = seq(0,1920*x,0.1)
+
+# Define total costs based on different estimation scenarios
+  cost_avg = avg_cost * trips
+  cost_min = min_cost * trips
+  cost_max = max_cost * trips
+
+# Define trips^2
+  trips_2 = trips^2
+
+# Define quadratic cost function as a function of the coefficient W
+  quadratic_cost = function(W){
+    return(W*trips_2)
+  }
+
+# Approach 0 : get average cost and divide by average x
+  W_avg_trip = avg_cost/(max(trips)/2)
+  Ws = c(W_avg_trip = W_avg_trip)
+# Approach 1: minimize sum of pointwise squared differences
+  difference = function(W)(sum((cost_avg - W*trips_2)^2))
+
+
+  res = optimize(difference, interval = c(0,1000))
+
+  costs_estimation = data.frame(trips, 
+                                cost_avg,
+                                quad_cost_avg = quadratic_cost(W),
+                                quad_cost_optim = quadratic_cost(res$minimum))
+  Ws = append(Ws, c(W_pointwise = res$minimum))
+
+# Second approach : minimize the sum of squared integral difference
+  difference = function(W){
+    y1 = W*trips_2
+    return( (sum(y1) - sum(cost_avg))^2)
+  }
+
+  res = optimize(difference, interval = c(0,1000))
+
+  Ws = append(Ws, c(W_integral = res$minimum))
+  costs_estimation = costs_estimation%>%
+    mutate(quad_cost_optim2 = quadratic_cost(res$minimum))
+  
+# Third approahc : find W such that the cost for realized trips (1920) is equal for both specifications
+  W_exact = avg_cost/1920
+
+  Ws = append(Ws, c(W_exact_1920 = W_exact))
+  Ws = append(Ws, x=x, 1)
+  costs_estimation = costs_estimation%>%
+    mutate(quad_cost_exact = quadratic_cost(W_exact))
+  values_W = rbind(values_W, Ws)
+}
+
+# Graph : 
+
+costs_estimation%>%
+  ggplot(aes(x=trips))+
+  geom_line(aes(y=cost_avg, colour = 'linear cost'), linewidth = 1.2)+
+  geom_line(aes(y = quad_cost_avg, colour = 'With W average of trips'), linewidth = 1.2)+
+  geom_line(aes(y = quad_cost_optim, colour = 'Optim by pointwise difference'), linewidth = 1.2)+
+  geom_line(aes(y = quad_cost_optim2, colour = 'Optim by integral difference'), linewidth = 1.2)+
+  geom_line(aes(y = quad_cost_exact, colour = 'Linear = quadratic at X = 1920'), linewidth = 1.2)+
+  geom_vline(xintercept = 1920)+
+  theme_bw()
+
+print(Ws)
+```
+
+
 
