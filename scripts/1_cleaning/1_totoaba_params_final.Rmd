@@ -13,9 +13,12 @@ library(tidyverse)
 # Define the parameters for the biological resource
 r <- 0.039 #from Upsides database (may need to be updated)
 k <- 20226 #carrying capacity (biomass in t) (source: INAPESCA)
-sigma_max <- 0.5526788 #catchability (needs to be effort per tonne of biomass) (source: INAPESCA via Andrew)
-sigma_min <- 0.0005526788
-sigma_own <- 0.0005526788
+sigma <- 0.0005526788 #catchability (source: INAPESCA via Andrew)
+
+#Transforming to weight
+avg_weight = 25.7 # Individual average weight (in kilograms)
+K = 20226 # Carrying capacity (in tonnes)
+K_ind = K*1000/avg_weight # Carrying capacity in individuals (unitless) 
 
 # II. Demand characteristics ########
 # Assume a linear inverse demand function p(q) = alpha - beta * q
