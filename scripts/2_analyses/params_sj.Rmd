@@ -8,6 +8,7 @@ output: html_document
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = F)
 library(tidyverse)
+library("ggsci")
 library(here)
 ```
 
@@ -58,7 +59,7 @@ dat_b %>% subset(y>2013)%>%
 ```
 Assuming a constant demand, we can leverage that change in supply to estimate the demand function. 
 
-## B. Data reformating
+### B. Data reformating
 First, recover individual totoaba poached from dried buche data. To do so: 
 
 1. `q` in `dat_p` is dried totoaba buche in tonnes : q*1000 is tonnes of dried totoaba buche
@@ -151,6 +152,8 @@ We keep the first model as it seem"s more pertinent.
 results = results[1,]
 ```
 
+### E. Re-estimating demand in biomass units, and with the same pooled OLS method
+
 # II. Cost data
 ## A. Poacher cost data
 From this section : need to get `W`, the cost parameters of the profit functions. We assume that the measure of effort is the number of trips per year.
@@ -181,7 +184,7 @@ r = 0.039
 k = 20226 # in metric tons of biomass from INAPESCA
 k_ = k*1000/25.7
 
-catchability = # in vessel trips ^-1
+catchability = 0.00055# in vessel trips ^-1
 
 
 results = results %>% cbind(r, k_, catchability)
@@ -190,6 +193,11 @@ results = results %>% cbind(r, k_, catchability)
 # IV. Estimating W
 
 From Julia's calculation, we have average cost. Now the procedure is to find the $W$ parameter that minimizes the difference between a straight cost and a quadratic cost. 
+
+```{r}
+dat_w = read.csv(here("data", "w_par.csv"))
+max_E = sum(dat_w$total_fleet_days_year)
+```
 
 ```{r}
 
@@ -203,6 +211,7 @@ max_cost = 13327.92
 values_W = data.frame()
 
 for (x in c(1, 1.2, 1.5)){
+  
   trips = seq(0,1920*x,0.1)
 
 # Define total costs based on different estimation scenarios
@@ -229,7 +238,7 @@ for (x in c(1, 1.2, 1.5)){
 
   costs_estimation = data.frame(trips, 
                                 cost_avg,
-                                quad_cost_avg = quadratic_cost(W),
+                                quad_cost_avg = quadratic_cost(W_avg_trip),
                                 quad_cost_optim = quadratic_cost(res$minimum))
   Ws = append(Ws, c(W_pointwise = res$minimum))
 
@@ -246,29 +255,44 @@ for (x in c(1, 1.2, 1.5)){
     mutate(quad_cost_optim2 = quadratic_cost(res$minimum))
   
 # Third approahc : find W such that the cost for realized trips (1920) is equal for both specifications
-  W_exact = avg_cost/1920
-
+  W_exact = avg_cost/max_E
   Ws = append(Ws, c(W_exact_1920 = W_exact))
   Ws = append(Ws, x=x, 1)
   costs_estimation = costs_estimation%>%
     mutate(quad_cost_exact = quadratic_cost(W_exact))
+  
+# Fourth approache : equate marginal costs at existing equilibrium point
+  # MC = 2*W*E
+  # maxE = 1920
+  W_MC = avg_cost/(2*max_E)
+  Ws = append(Ws, c(MC_eq = W_MC))
+  differ = max_E*avg_cost -W_MC*max_E^2 
+
+  costs_estimation = costs_estimation%>%
+    mutate(quad_cost_MC = quadratic_cost(W_MC)+ differ)
   values_W = rbind(values_W, Ws)
+
 }
+colnames(values_W) = names(Ws)
 
 # Graph : 
 
 costs_estimation%>%
   ggplot(aes(x=trips))+
-  geom_line(aes(y=cost_avg, colour = 'linear cost'), linewidth = 1.2)+
-  geom_line(aes(y = quad_cost_avg, colour = 'With W average of trips'), linewidth = 1.2)+
-  geom_line(aes(y = quad_cost_optim, colour = 'Optim by pointwise difference'), linewidth = 1.2)+
-  geom_line(aes(y = quad_cost_optim2, colour = 'Optim by integral difference'), linewidth = 1.2)+
-  geom_line(aes(y = quad_cost_exact, colour = 'Linear = quadratic at X = 1920'), linewidth = 1.2)+
-  geom_vline(xintercept = 1920)+
-  theme_bw()
-
+  geom_line(aes(y=cost_avg, colour = 'linear cost'), linetype = "dashed")+
+  geom_line(aes(y = quad_cost_avg, colour = 'With W average of trips'))+
+  geom_line(aes(y = quad_cost_optim, colour = 'Optim by pointwise difference'))+
+  geom_line(aes(y = quad_cost_optim2, colour = 'Optim by integral difference'))+
+  geom_line(aes(y = quad_cost_exact, colour = 'Linear = quadratic at historical equilibrium'))+
+  geom_line(aes(y = quad_cost_MC, colour = 'MC equal at historical equilibrium'))+
+  #geom_vline(xintercept = 1920)+
+  theme_bw()+
+  scale_color_aaas()
 print(Ws)
 ```
-
-
+Several points are worth noting : economic theory should favor the estimate of $W$ such that $MC(E^*)$ is equal for the linear and quadratic cost. This results in a sizeable difference, that can be fixed with a fixed cost parameter. In the end, this would yield the estimate of $W$ to be such that : 
+$$
+MC(E_{hist}) = 2WE_{hist} = \kappa \Rightarrow W = \frac{\kappa}{2E_{hist}}
+$$
+The question remains open as to if or how we control for the final difference in costs to assess profitability in equilibrium. I guess this goes to show that the discussion on the computation of profits is still not settled. 
 
