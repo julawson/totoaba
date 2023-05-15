@@ -36,7 +36,8 @@ Observe a decrease of average weight. Second, look at the evolution of price per
 ```{r pressure, echo=FALSE}
 dat_p = dat_p %>%
   mutate(price_buche = g*p,
-         price_kg = p*1000)
+         price_kg = p*1000, 
+         price_buche_kg = price_buche*1000)
 dat_p %>%
   ggplot(aes(x=year))+
   geom_point(aes(y = price_buche))+
@@ -154,6 +155,52 @@ results = results[1,]
 
 ### E. Re-estimating demand in biomass units, and with the same pooled OLS method
 
+We want an estimate that relates prices to quantities of biomass. However, biomass does not refer to the quantity of product here. It relates to the quantity of fish, which produce buche. Therefore, we need a conversion rate. Using data from INAPESCA, we use the following : 
+$$
+1\text{ kilo of biomass} \equiv \frac{0.5 \text{ kg of buche}}{25.7 \text{kg}} \approx 0.019
+$$
+```{r}
+conv = .5/25.7
+```
+
+From there, I regress prices on the biomass, using the conversion rate : 
+$$
+\text{price buche}_{i} = \alpha + \beta\times conv \times catch_{i}
+$$
+
+After all, I'm not sure this is interesting. We want to have price per unit of biomass, and express everything per unit of biomass, no? 
+
+```{r}
+new_dat = merge(dat_b %>% 
+                  subset(y>2013) %>% 
+                  select(y,c) %>%
+                  rename(year=y), 
+                dat_p %>% 
+                  select(year, price_buche, price_kg))
+
+new_dat = new_dat %>% mutate(c_kg = c*1000,
+                             c_buche_kg = c_kg * conv,
+                             c_buche = c * conv)
+
+model  = lm(price_kg ~ c_kg, data = new_dat)
+model2 = lm(price_kg ~ c_buche_kg, data = new_dat)
+
+demand = function(biomass){
+  y = model$coefficients[1] + model$coefficients[2]*biomass
+  return(y)
+}
+
+data.frame(x = seq(1,max(new_dat %>%select(c))*1000, 10)) %>%
+  mutate(demand = demand(x))%>%
+  ggplot(aes(x = x, y = demand))+
+  geom_line()+
+  xlab('biomass of totoaba (kg)')+
+  ylab('Price (2019 $USD)')+
+  theme_bw()
+
+summary(model)
+```
+
 # II. Cost data
 ## A. Poacher cost data
 From this section : need to get `W`, the cost parameters of the profit functions. We assume that the measure of effort is the number of trips per year.
@@ -173,6 +220,7 @@ df_farm = df_farm %>%
   mutate(cost_per_toto = Cost_feed_kgyear/Number_Individuals)
 df_farm %>% ggplot(aes(x=Totoaba_Age))+
   geom_point(aes(y=cost_per_toto, colour = 'Cost'))
+
 ```
 
 # III. Fish parameters
@@ -182,9 +230,9 @@ Julia has set up the growth and catchability parameters
 
 r = 0.039
 k = 20226 # in metric tons of biomass from INAPESCA
-k_ = k*1000/25.7
+k_ = k*1000 # in kilos
 
-catchability = 0.00055# in vessel trips ^-1
+catchability = 0.0005526788# in vessel trips ^-1
 
 
 results = results %>% cbind(r, k_, catchability)
@@ -264,6 +312,7 @@ for (x in c(1, 1.2, 1.5)){
 # Fourth approache : equate marginal costs at existing equilibrium point
   # MC = 2*W*E
   # maxE = 1920
+  W_MC_storage = c()
   W_MC = avg_cost/(2*max_E)
   Ws = append(Ws, c(MC_eq = W_MC))
   differ = max_E*avg_cost -W_MC*max_E^2 
@@ -274,7 +323,7 @@ for (x in c(1, 1.2, 1.5)){
 
 }
 colnames(values_W) = names(Ws)
-
+W_MC = c(avg_cost/(2*max_E), min_cost/(2*max_E), max_cost/(2*max_E))
 # Graph : 
 
 costs_estimation%>%
@@ -295,4 +344,78 @@ $$
 MC(E_{hist}) = 2WE_{hist} = \kappa \Rightarrow W = \frac{\kappa}{2E_{hist}}
 $$
 The question remains open as to if or how we control for the final difference in costs to assess profitability in equilibrium. I guess this goes to show that the discussion on the computation of profits is still not settled. 
+
+```{r}
+results = results %>% cbind(W_MC)
+```
+
+# V. Simulating the model
+### A. Parameters, units of measure
+
+```{r}
+# Demand for totoaba buche : USD per unit of biomass of totoaba
+alpha = model$coefficients[1] # Choke price in USD 
+beta = -model$coefficients[2] # Demand coefficient for 
+
+demand = function(buche){
+  # Yields price per kilogram of totoaba
+  price = alpha - beta*buche
+  names(price) = c('price')
+  return(price)
+}
+
+# Growth function for totoaba biomass (in kilograms)
+growth = function(x){
+  y = r*x*(1-x/k_)
+  return(y)
+}
+# conversion rate of totoaba biomass to buche biomass
+conv = .5/25.7
+
+# Catchability
+sigma = 0.0005526788
+
+# Cost parameters:
+W = W_MC[1]
+
+# gamma & v per kilogram of totoaba
+dat_aqua = read.csv(here('data', 'aqua_par_farm.csv'))
+dat_aqua = dat_aqua %>%
+  mutate(cost_per_kilo_toto = Totoaba_Age*2,
+         cost_per_kilo_buche = cost_per_kilo_toto/conv)
+
+gamma = dat_aqua %>% subset(Gamma>0.6 & Gamma < .65) %>% select(Gamma) %>% pull()
+v = dat_aqua %>% subset(Gamma>0.6 & Gamma < .65) %>% select(cost_per_kilo_toto) %>% pull()
+
+# Cost parameter for monopoly : 
+c = 2657.41 # per metric ton of totoaba
+c = c/1000
+```
+
+### B. Check calibration
+```{r}
+qty_monop = function(x){
+ y = (alpha - c)*sigma^2 * x^2 / (2*beta* sigma^2 * x^2 + 2*W)
+ return(y)
+}
+
+result1 = data.frame( x = seq(1, k_, 10))%>%
+  mutate(growth = growth(x),
+         qty_monop = qty_monop(x),
+         differ = growth - qty_monop)
+
+result1 %>% subset(differ <1 & differ >-1)
+
+#result1 %>% ggplot(aes(x=x))+
+#  geom_line(aes(y = growth))+
+#  geom_line(aes(y = qty_monop))+
+#  geom_vline(xintercept =8447*1000)
+
+result1 %>% ggplot(aes(x = x, y = growth)) +geom_line()
+result1 %>% ggplot(aes(x = x, y = qty_monop)) +geom_line()
+```
+
+
+
+
 
