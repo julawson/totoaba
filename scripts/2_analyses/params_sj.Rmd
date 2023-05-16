@@ -17,7 +17,7 @@ library(here)
 
 ```{r load data, echo = F}
 dat_p = read.csv(here("data","andrew","dat_p.csv")) #Price-quantity data (OG Paper)
-dat_b = read.csv(here('data', 'andrew', "dat_bc.csv"))
+dat_b = read.csv(here('data', 'andrew', "datatheif_stock.csv"))
 ```
 
 First, look at the evolution of average weight per year : 
@@ -70,8 +70,9 @@ First, recover individual totoaba poached from dried buche data. To do so:
 + In `dat_p`, take `c` catch data in metric tonnes and convert to kilos (`c*1000`)
 + Under the assumption of uniform distribution of size of caught totoaba, all weigh  25.7 kg (divide catch in kilos by average weight)
 ```{r, echo =F}
-dat_p = dat_p %>% mutate(totoaba = (q*1000)/.5)
-dat_b = dat_b %>% mutate(totoaba = (c*1000/25.7))
+#JML. Added a conversion factor that transforms dry weight to wet weight (dw / 0.31 = ww)
+dat_p = dat_p %>% mutate(totoaba = ((q*1000)/0.31)/.5) 
+dat_b = dat_b %>% mutate(totoaba = (c*1000/25.7)) 
 
 data.frame( totoaba_est = dat_p %>% select(totoaba) %>% unique() %>% pull(),
             totoaba_obs = dat_b %>% subset(y>2013) %>% select(totoaba)%>%pull(),
