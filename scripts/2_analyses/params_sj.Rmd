@@ -17,7 +17,7 @@ library(here)
 
 ```{r load data, echo = F}
 dat_p = read.csv(here("data","andrew","dat_p.csv")) #Price-quantity data (OG Paper)
-dat_b = read.csv(here('data', 'andrew', "dat_bc.csv"))
+dat_b = read.csv(here('data', 'andrew', "datatheif_stock.csv"))
 ```
 
 First, look at the evolution of average weight per year : 
