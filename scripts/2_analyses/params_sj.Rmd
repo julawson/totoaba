@@ -156,46 +156,70 @@ results = results[1,]
 
 ### E. Re-estimating demand in biomass units, and with the same pooled OLS method
 
-We want an estimate that relates prices to quantities of biomass. However, biomass does not refer to the quantity of product here. It relates to the quantity of fish, which produce buche. Therefore, we need a conversion rate. Using data from INAPESCA, we use the following : 
-$$
-1\text{ kilo of biomass} \equiv \frac{0.5 \text{ kg of buche}}{25.7 \text{kg}} \approx 0.019
-$$
-```{r}
-conv = .5/25.7
-```
+We want an estimate that relates prices to quantities of biomass. Without any worry of conversion, I regress prices on caught biomass measured in *metric tons*. This model assumes no lag between poaching and selling.
 
-From there, I regress prices on the biomass, using the conversion rate : 
 $$
-\text{price buche}_{i} = \alpha + \beta\times conv \times catch_{i}
+\text{price buche}_{i} = \alpha + \beta \times catch_{i}
 $$
-
-After all, I'm not sure this is interesting. We want to have price per unit of biomass, and express everything per unit of biomass, no? 
 
 ```{r}
+
 new_dat = merge(dat_b %>% 
                   subset(y>2013) %>% 
                   select(y,c) %>%
                   rename(year=y), 
                 dat_p %>% 
+                  subset(year > 2013) %>%
                   select(year, price_buche, price_kg))
 
-new_dat = new_dat %>% mutate(c_kg = c*1000,
-                             c_buche_kg = c_kg * conv,
-                             c_buche = c * conv)
+new_dat = new_dat %>% mutate(c_kg = c*1000)
 
-model  = lm(price_kg ~ c_kg, data = new_dat)
-model2 = lm(price_kg ~ c_buche_kg, data = new_dat)
+new_dat2 = merge(dat_b %>% 
+                  subset(y>2013) %>% 
+                  select(y,c) %>%
+                  rename(year=y), 
+                 dat_p %>% 
+                   group_by(year)%>%
+                   summarise_at(vars(price_kg),
+                                list(avg_price_kg = mean)))
+# Sample restriction to 2016
+#
+#new_dat2 %>% 
+#  ggplot(aes(x = c,
+#             y = avg_price_kg, 
+#             colour = as.factor(year)))+
+#  geom_point(size = 2)+
+#  theme_bw
+
+new_dat %>% 
+  ggplot(aes(x = c, 
+             y = price_kg, 
+             colour = as.factor(year))) + 
+  geom_point(size = 2)+
+  theme_bw()
+```
+
+Given this summary visualization of the data:
+
+* There seems to be two different subperiods : 2014-2015, and 2016-2017
+* There are confounder between the two subperiods that may drive both a demand and a supply change. We won't get a "clean" estimate. 
+* Under restrictive assumptions and to match with recent trends, we can restrict the sample to 2016-2017 to estimate demand 
+* This should be a call to evaluate various demand schemes and notably to focus on other demand-sided policy interventions. 
+
+```{r}
+new_dat = new_dat %>% subset(year >2015)
+model  = lm(price_kg ~ c, data = new_dat)
 
 demand = function(biomass){
   y = model$coefficients[1] + model$coefficients[2]*biomass
   return(y)
 }
 
-data.frame(x = seq(1,max(new_dat %>%select(c))*1000, 10)) %>%
+data.frame(x = seq(1,max(new_dat %>%select(c)))) %>%
   mutate(demand = demand(x))%>%
   ggplot(aes(x = x, y = demand))+
   geom_line()+
-  xlab('biomass of totoaba (kg)')+
+  xlab('biomass of totoaba (metric tons)')+
   ylab('Price (2019 $USD)')+
   theme_bw()
 
@@ -211,17 +235,6 @@ W = 8215
 c = 68
 results = results %>% cbind(W,c)
 print(results)
-```
-
-## B. Farming cost
-
-```{r}
-df_farm = read.csv(here("data", "aqua_par_farm.csv"))
-df_farm = df_farm %>%
-  mutate(cost_per_toto = Cost_feed_kgyear/Number_Individuals)
-df_farm %>% ggplot(aes(x=Totoaba_Age))+
-  geom_point(aes(y=cost_per_toto, colour = 'Cost'))
-
 ```
 
 # III. Fish parameters
@@ -358,16 +371,16 @@ results = results %>% cbind(W_MC)
 alpha = model$coefficients[1] # Choke price in USD 
 beta = -model$coefficients[2] # Demand coefficient for 
 
-demand = function(buche){
-  # Yields price per kilogram of totoaba
-  price = alpha - beta*buche
+demand = function(totoaba){
+  # Yields price per tons of totoaba
+  price = alpha - beta*totoaba
   names(price) = c('price')
   return(price)
 }
 
 # Growth function for totoaba biomass (in kilograms)
 growth = function(x){
-  y = r*x*(1-x/k_)
+  y = r*x*(1-x/k)
   return(y)
 }
 # conversion rate of totoaba biomass to buche biomass
@@ -383,39 +396,47 @@ W = W_MC[1]
 dat_aqua = read.csv(here('data', 'aqua_par_farm.csv'))
 dat_aqua = dat_aqua %>%
   mutate(cost_per_kilo_toto = Totoaba_Age*2,
+         cost_per_ton_toto = cost_per_kilo_toto * 1000,
          cost_per_kilo_buche = cost_per_kilo_toto/conv)
 
 gamma = dat_aqua %>% subset(Gamma>0.6 & Gamma < .65) %>% select(Gamma) %>% pull()
-v = dat_aqua %>% subset(Gamma>0.6 & Gamma < .65) %>% select(cost_per_kilo_toto) %>% pull()
+v = dat_aqua %>% subset(Gamma>0.6 & Gamma < .65) %>% select(cost_per_ton_toto) %>% pull()
 
 # Cost parameter for monopoly : 
 c = 2657.41 # per metric ton of totoaba
-c = c/1000
+#test
+c = c /10
 ```
 
 ### B. Check calibration
 ```{r}
+
 qty_monop = function(x){
  y = (alpha - c)*sigma^2 * x^2 / (2*beta* sigma^2 * x^2 + 2*W)
  return(y)
 }
 
-result1 = data.frame( x = seq(1, k_, 10))%>%
+result1 = data.frame( x = seq(1, k))%>%
   mutate(growth = growth(x),
          qty_monop = qty_monop(x),
          differ = growth - qty_monop)
 
 result1 %>% subset(differ <1 & differ >-1)
 
-#result1 %>% ggplot(aes(x=x))+
-#  geom_line(aes(y = growth))+
-#  geom_line(aes(y = qty_monop))+
+result1 %>% ggplot(aes(x=x))+
+  geom_line(aes(y = growth))+
+  geom_line(aes(y = qty_monop))
 #  geom_vline(xintercept =8447*1000)
 
 result1 %>% ggplot(aes(x = x, y = growth)) +geom_line()
 result1 %>% ggplot(aes(x = x, y = qty_monop)) +geom_line()
 ```
 
+Now, we need to think. Several things : 
+
+1. Monopoly extraction may be viewed better as in transitory dynamics. Indeed, there is more catch than at a steady state
+2. Second, demand estimates may be too small : the maximum harvest in our simulation is a little above 300 tonnes of totoaba a year. However, the recent numbers point to 400 tons.
+3. It might be interesting to see, from there, what the simulation yields. It could be interesting to see if the introduction of competition creates different steady states. 
 
 
 
