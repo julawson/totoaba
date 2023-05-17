@@ -10,6 +10,8 @@ knitr::opts_chunk$set(echo = F)
 library(tidyverse)
 library("ggsci")
 library(here)
+library(knitr)
+library(stargazer)
 ```
 
 # I. Demand estimation
@@ -64,7 +66,7 @@ Assuming a constant demand, we can leverage that change in supply to estimate th
 First, recover individual totoaba poached from dried buche data. To do so: 
 
 1. `q` in `dat_p` is dried totoaba buche in tonnes : q*1000 is tonnes of dried totoaba buche
-2. Given that we assume uniform distribution of totoaba size and that 1 totoaba = 500g of dried totoaba dried totoaba in kilos / 0.5 kilos -> Number of totoaba
+2. Given that we assume uniform distribution of totoaba size and that 1 totoaba = 500g of dried totoaba, then dried totoaba in kilos (converted to wet)/ 0.5 kilos -> Number of totoaba
 3. Compare that to catch data :
 
 + In `dat_p`, take `c` catch data in metric tonnes and convert to kilos (`c*1000`)
@@ -95,8 +97,10 @@ In what follows :
 * I use the variations in realized catch from `dat_bc`, converted to totoaba individuals assuming uniform weight distribution (`tototaba = c*1000/25.7`)
 
 ```{r}
-results = data.frame()
+calibration = data.frame()
+
 new_dat = merge(dat_b %>% subset(y>2013) %>% select(y,totoaba) %>%rename(year=y), dat_p %>% select(year, price_buche))
+
 model = lm(price_buche ~ totoaba, data = new_dat)
 summary(model)
 
@@ -112,9 +116,10 @@ data.frame(x = seq(1,max(dat_b %>% subset(y>2013)%>%select(totoaba)))) %>%
   xlab('Number of totoabas caught (unitless)')+
   ylab('Price (2019 $USD)')+
   theme_bw()
-
-results = results %>% rbind(model$coefficients)
 ```
+
+But several problems  :
+* Upward sloping demand function
 
 ### D. Attempt 2 : Use price per totoaba and variation in estimated catch (converting dried buche tons to live totoaba)
 
@@ -140,18 +145,6 @@ data.frame(x = seq(1,max(dat_b %>% subset(y>2013)%>%select(totoaba)))) %>%
   theme_bw()+
   geom_hline(yintercept=0)
 
-results = results %>% rbind(model$coefficients)
-```
-
-In the end, we get two demand models : 
-```{r}
-colnames(results) = c('Intercept (alpha)', 'beta')
-print(results)
-```
-
-We keep the first model as it seem"s more pertinent. 
-```{r}
-results = results[1,]
 ```
 
 ### E. Re-estimating demand in biomass units, and with the same pooled OLS method
@@ -207,8 +200,11 @@ Given this summary visualization of the data:
 * This should be a call to evaluate various demand schemes and notably to focus on other demand-sided policy interventions. 
 
 ```{r}
-new_dat = new_dat %>% subset(year >2015)
-model  = lm(price_kg ~ c, data = new_dat)
+new_dat = new_dat %>%
+  mutate(price_ton = price_kg * 1000)%>%
+  subset(year >2015)
+
+model  = lm(price_ton ~ c, data = new_dat)
 
 demand = function(biomass){
   y = model$coefficients[1] + model$coefficients[2]*biomass
@@ -224,20 +220,17 @@ data.frame(x = seq(1,max(new_dat %>%select(c)))) %>%
   theme_bw()
 
 summary(model)
+
+params = c('alpha', 'beta')
+value = c(model$coefficients[1], - model$coefficients[2])
+concept = c('Demand model : intercept', 'Demand model : coefficient')
+units = c('USD', 'USD/metric ton of biomass')
 ```
 
-# II. Cost data
-## A. Poacher cost data
-From this section : need to get `W`, the cost parameters of the profit functions. We assume that the measure of effort is the number of trips per year.
-```{r}
-df_wild = read.csv(here('data', 'w_par.csv'))
-W = 8215
-c = 68
-results = results %>% cbind(W,c)
-print(results)
-```
 
-# III. Fish parameters
+
+
+# II. Fish parameters
 
 Julia has set up the growth and catchability parameters
 ```{r}
@@ -248,11 +241,14 @@ k_ = k*1000 # in kilos
 
 catchability = 0.0005526788# in vessel trips ^-1
 
+params = append(params, c('r', 'k','sigma'))
+value = append(value, c(r, k, catchability))
+concept = append(concept, c('intrinsic growth rate', 'carrying capacity', 'catchability'))
+units = append(units, c('unitless', 'metric tons of biomass', 'vessel trips $^{-1}$'))
 
-results = results %>% cbind(r, k_, catchability)
 ```
 
-# IV. Estimating W
+# III. Estimating W
 
 From Julia's calculation, we have average cost. Now the procedure is to find the $W$ parameter that minimizes the difference between a straight cost and a quadratic cost. 
 
@@ -352,6 +348,16 @@ costs_estimation%>%
   theme_bw()+
   scale_color_aaas()
 print(Ws)
+
+
+params = append(params, c('W_mid', 'W_low', 'W_high', 'avg_cost'))
+value = append(value, c(W_MC, avg_cost))
+concept = append(concept, c('Parameter cost such that MC are equal at historical value - middle',
+                            'Parameter cost such that MC are equal at historical value - low',
+                            'Parameter cost such that MC are equal at historical value - high',
+                            'Average cost per vessel trip in data'))
+units = append(units, c('USD','USD','USD', "USD"))
+
 ```
 Several points are worth noting : economic theory should favor the estimate of $W$ such that $MC(E^*)$ is equal for the linear and quadratic cost. This results in a sizeable difference, that can be fixed with a fixed cost parameter. In the end, this would yield the estimate of $W$ to be such that : 
 $$
@@ -359,14 +365,13 @@ MC(E_{hist}) = 2WE_{hist} = \kappa \Rightarrow W = \frac{\kappa}{2E_{hist}}
 $$
 The question remains open as to if or how we control for the final difference in costs to assess profitability in equilibrium. I guess this goes to show that the discussion on the computation of profits is still not settled. 
 
-```{r}
-results = results %>% cbind(W_MC)
-```
-
 # V. Simulating the model
+
 ### A. Parameters, units of measure
 
 ```{r}
+
+
 # Demand for totoaba buche : USD per unit of biomass of totoaba
 alpha = model$coefficients[1] # Choke price in USD 
 beta = -model$coefficients[2] # Demand coefficient for 
@@ -406,11 +411,16 @@ v = dat_aqua %>% subset(Gamma>0.6 & Gamma < .7) %>% select(cost_per_ton_toto) %>
 c = 2657.41 # per metric ton of totoaba
 #test
 c = c
+
+params = append(params, c('gamma', 'v', 'c'))
+value = append(value, c(gamma, v, c))
+concept = append(concept, c('Substitutability', 'unit cost of farming', 'unit costs associated with trading'))
+units = append(units, c('unitless', 'USD/ton of biomass', 'USD/ton of biomass'))
+
 ```
 
 ### B. Check calibration
 ```{r}
-
 qty_monop = function(x){
  y = (alpha - c)*sigma^2 * x^2 / (2*beta* sigma^2 * x^2 + 2*W)
  return(y)
@@ -421,11 +431,13 @@ result1 = data.frame( x = seq(1, k))%>%
          qty_monop = qty_monop(x),
          differ = growth - qty_monop)
 
-result1 %>% subset(differ <1 & differ >-1)
+# result1 %>% subset(differ <1 & differ >-1)
 
 result1 %>% ggplot(aes(x=x))+
   geom_line(aes(y = growth))+
-  geom_line(aes(y = qty_monop))
+  geom_line(aes(y = qty_monop))+
+  ylab('Qty : growth / harvest')+
+  theme_bw()
 #  geom_vline(xintercept =8447*1000)
 ```
 
@@ -443,10 +455,14 @@ alpha_f = alpha
 beta_w = beta
 beta_f = beta
 
+subsidy = 13000
+v = v - subsidy
+
 q_cournot_wild_own = function(x){
   y = ((sigma^2)*(x^2)*(2*beta_f*(alpha_w - c) - gamma*(alpha_f - v)))/(4*beta_f*W + (sigma^2)*(x^2)*(4*beta_f*beta_w - (gamma^2)))
   return(y)
 }
+
 s_c_own = function(x){
   y = (2*W*(2*beta_f*(alpha_w - c) - gamma*(alpha_f - v)))/((sigma^2)*(x^2)*(4*beta_f*beta_w - gamma^2) + 4*beta_f*W)
   return(y)
@@ -463,7 +479,7 @@ result1 %>%
   geom_line(aes(y = growth, colour = 'Growth'))+
   geom_line(aes(y = qty_monop, colour = 'Monopoly harvest'))+
   geom_line(aes(y = q_cournot_harvest, colour = 'Cournot harvest'))+
-  geom_line(aes(y = q_cournot_farmed, colour = 'Cournot farmed'))+
+  #geom_line(aes(y = q_cournot_farmed, colour = 'Cournot farmed'))+
   theme_bw()+
   ggtitle('Equilibria for Cournot competition compared to monopoly')
 ```
@@ -519,6 +535,12 @@ Conclusion from preliminary results :
 # Analysis of new scenarios?
 
 For example, can we think of ways that would curb the exploitation? For example, what about cracking down on demand, or technological research that makes production less costly? Or compare the impact of different cost measures for poaching, at the trader and poacher level? 
+# Table for parameters (values, concept and units)
 
+Goal here is to leverage this table to do (i) sensitivity analysis and (ii) to investigate policy scenarios
 
+```{r}
+calibration = data.frame(params, value, concept, units)
 
+kable(calibration, caption = 'Parameters used for calibration')
+```
