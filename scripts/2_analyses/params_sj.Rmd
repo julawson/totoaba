@@ -7,6 +7,8 @@ output: html_document
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = F)
+options(scipen=999)
+
 library(tidyverse)
 library("ggsci")
 library(here)
@@ -159,7 +161,7 @@ $$
 
 new_dat = merge(dat_b %>% 
                   subset(y>2013) %>% 
-                  select(y,c) %>%
+                  select(y,c, totoaba) %>%
                   rename(year=y), 
                 dat_p %>% 
                   subset(year > 2013) %>%
@@ -205,7 +207,7 @@ new_dat = new_dat %>%
   subset(year >2015)
 
 model  = lm(price_ton ~ c, data = new_dat)
-
+model2 = lm(price_kg ~c, data = new_dat)
 demand = function(biomass){
   y = model$coefficients[1] + model$coefficients[2]*biomass
   return(y)
@@ -225,9 +227,49 @@ params = c('alpha', 'beta')
 value = c(model$coefficients[1], - model$coefficients[2])
 concept = c('Demand model : intercept', 'Demand model : coefficient')
 units = c('USD', 'USD/metric ton of biomass')
+
+price_obs = model$coefficients[1] + model$coefficients[2]*307
+price_obs = price_obs/1000
 ```
 
+With this model, typically, observed catch in 2017 yields a price of `r price_obs` \$ USD per kilo of buche. In this case, the value of a 25.7 kilos totoaba is `r .5*price_obs` \$
 
+**Check what happens if we use the recovered values**
+
+### F. Getting the units right
+
+Previous demand estimation related price of buche to biomass of totoaba. However, this is not what we need to do. We need to have price of totoaba and biomass of totoaba. To do so, I'll convert all price data based on the following conversion : $1 \text{kg of totoaba} = 0.019 \text{kg of buche}$. Therefore : 
+
+```{r}
+new_dat = new_dat %>%
+  mutate(price_ton_toto = price_ton * 0.019)
+
+model  = lm(price_ton_toto ~ c, data = new_dat)
+demand = function(biomass){
+  y = model$coefficients[1] + model$coefficients[2]*biomass
+  return(y)
+}
+
+data.frame(x = seq(1,max(new_dat %>%select(c)))) %>%
+  mutate(demand = demand(x))%>%
+  ggplot(aes(x = x, y = demand))+
+  geom_line()+
+  xlab('biomass of totoaba (metric tons)')+
+  ylab('Price (2019 $USD)')+
+  theme_bw()
+
+summary(model)
+
+params = c('alpha', 'beta')
+value = c(model$coefficients[1], - model$coefficients[2])
+concept = c('Demand model : intercept', 'Demand model : coefficient')
+units = c('USD', 'USD/metric ton of biomass')
+
+price_obs = model$coefficients[1] + model$coefficients[2]*307
+price_obs = price_obs/1000
+```
+
+With this model, typically, observed catch in 2017 yields a price of `r price_obs` \$ USD per kilo of totoaba In this case, the value of a 25.7 kilos totoaba is `r 25.7*price_obs` \$
 
 
 # II. Fish parameters
@@ -373,7 +415,7 @@ The question remains open as to if or how we control for the final difference in
 
 
 # Demand for totoaba buche : USD per unit of biomass of totoaba
-alpha = model$coefficients[1] # Choke price in USD 
+alpha = model$coefficients[1]# Choke price in USD 
 beta = -model$coefficients[2] # Demand coefficient for 
 
 demand = function(totoaba){
@@ -396,6 +438,7 @@ sigma = 0.0005526788
 
 # Cost parameters:
 W = W_MC[1]
+W = 10
 
 # gamma & v per kilogram of totoaba
 dat_aqua = read.csv(here('data', 'aqua_par_farm.csv'))
@@ -454,9 +497,6 @@ alpha_w = alpha
 alpha_f = alpha
 beta_w = beta
 beta_f = beta
-
-subsidy = 13000
-v = v - subsidy
 
 q_cournot_wild_own = function(x){
   y = ((sigma^2)*(x^2)*(2*beta_f*(alpha_w - c) - gamma*(alpha_f - v)))/(4*beta_f*W + (sigma^2)*(x^2)*(4*beta_f*beta_w - (gamma^2)))
@@ -544,3 +584,18 @@ calibration = data.frame(params, value, concept, units)
 
 kable(calibration, caption = 'Parameters used for calibration')
 ```
+
+Several comments : 
+
+* $\alpha$ and $\beta$ : Demand may need further work. However, the estimates do not look too crazy.
+  + However, there must be a conversion problem!!! One can relate the estimation of the price of buche to the catch of totoaba. However, when considering the revenue, the price applies to **the quantity of buche** not to the biomass of totoaba. Need to correct for that. 
+  + => Check for conversion : the conversion rate affects the outcome variable, so the coefficients change by the same proportion. Therefore, the cost effect increases slightly but it is not sufficient to bring back to a steady state.
+* $r$ looks pretty solid
+* $W$s are variable, but make little difference (I have tried with 2 to 10, no difference)
+* $\sigma$ did not have much of an impact either
+* $\gamma$ has to change and I'll program a loop tomorrow to have all the realistic values : it needs to include the profit function of the farmers, to find which maximizes its profit. There might be some discounting at play here. 
+* $v$ can move but unless we pick a shorter rotation, it is more likely to go up if we include operational costs
+  + We can have a $v_{net}$ parameter that influences the equilibrium. However, I've ran a couple of tests today, it seems that unless the subsidy is close to a 1,000,000 \$/ton, it does not make a difference.
+  + At some point, if profitability is what we aim at tackling, we need to have data on fixed costs and number of pens operating.
+* $c$ can move a lot I think. Our estimate is based on fines, and bribes, and convictions. It's a lot, but I'm sure there is an argument to increase it. 
+
