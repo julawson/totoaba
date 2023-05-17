@@ -21,7 +21,10 @@ library(stargazer)
 
 ```{r load data, echo = F}
 dat_p = read.csv(here("data","andrew","dat_p.csv")) #Price-quantity data (OG Paper)
-dat_b = read.csv(here('data', 'andrew', "datatheif_stock.csv"))
+dat_b = read.csv(here('data', 'andrew', "totoaba_biomass_catch_20230516.csv")) %>% 
+  rename(y = X) %>% 
+  rename(b = Biomass..Tonnes.) %>% 
+  rename(c = Catch..Tonnes.)
 ```
 
 First, look at the evolution of average weight per year : 
@@ -75,7 +78,9 @@ First, recover individual totoaba poached from dried buche data. To do so:
 + Under the assumption of uniform distribution of size of caught totoaba, all weigh  25.7 kg (divide catch in kilos by average weight)
 ```{r, echo =F}
 #JML. Added a conversion factor that transforms dry weight to wet weight (dw / 0.31 = ww)
+# Buche to dry buche conversion has a conversion factor of 0.31; wet weight whole fish to wet buche has a conversion factor of 0.0161
 dat_p = dat_p %>% mutate(totoaba = ((q*1000)/0.31)/.5) 
+
 dat_b = dat_b %>% mutate(totoaba = (c*1000/25.7)) 
 
 data.frame( totoaba_est = dat_p %>% select(totoaba) %>% unique() %>% pull(),
