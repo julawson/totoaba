@@ -399,13 +399,13 @@ dat_aqua = dat_aqua %>%
          cost_per_ton_toto = cost_per_kilo_toto * 1000,
          cost_per_kilo_buche = cost_per_kilo_toto/conv)
 
-gamma = dat_aqua %>% subset(Gamma>0.6 & Gamma < .65) %>% select(Gamma) %>% pull()
-v = dat_aqua %>% subset(Gamma>0.6 & Gamma < .65) %>% select(cost_per_ton_toto) %>% pull()
+gamma = dat_aqua %>% subset(Gamma>0.6 & Gamma < .7) %>% select(Gamma) %>% pull()
+v = dat_aqua %>% subset(Gamma>0.6 & Gamma < .7) %>% select(cost_per_ton_toto) %>% pull()
 
 # Cost parameter for monopoly : 
 c = 2657.41 # per metric ton of totoaba
 #test
-c = c /10
+c = c
 ```
 
 ### B. Check calibration
@@ -427,9 +427,6 @@ result1 %>% ggplot(aes(x=x))+
   geom_line(aes(y = growth))+
   geom_line(aes(y = qty_monop))
 #  geom_vline(xintercept =8447*1000)
-
-result1 %>% ggplot(aes(x = x, y = growth)) +geom_line()
-result1 %>% ggplot(aes(x = x, y = qty_monop)) +geom_line()
 ```
 
 Now, we need to think. Several things : 
@@ -438,6 +435,90 @@ Now, we need to think. Several things :
 2. Second, demand estimates may be too small : the maximum harvest in our simulation is a little above 300 tonnes of totoaba a year. However, the recent numbers point to 400 tons.
 3. It might be interesting to see, from there, what the simulation yields. It could be interesting to see if the introduction of competition creates different steady states. 
 
+### C. Run prelim analysis : Cournot
+
+```{r}
+alpha_w = alpha
+alpha_f = alpha
+beta_w = beta
+beta_f = beta
+
+q_cournot_wild_own = function(x){
+  y = ((sigma^2)*(x^2)*(2*beta_f*(alpha_w - c) - gamma*(alpha_f - v)))/(4*beta_f*W + (sigma^2)*(x^2)*(4*beta_f*beta_w - (gamma^2)))
+  return(y)
+}
+s_c_own = function(x){
+  y = (2*W*(2*beta_f*(alpha_w - c) - gamma*(alpha_f - v)))/((sigma^2)*(x^2)*(4*beta_f*beta_w - gamma^2) + 4*beta_f*W)
+  return(y)
+}
+q_farmed_cournot = function(s){
+  y = (2 * beta_w * (alpha_f - v) - gamma* (alpha_w - (s + c)) )/(4*beta_w*beta_f - gamma^2)
+}
+
+result1 = result1 %>% mutate(q_cournot_harvest = q_cournot_wild_own(x),
+                             q_cournot_farmed = q_farmed_cournot(s_c_own(x)))
+
+result1 %>%
+  ggplot(aes(x = x))+
+  geom_line(aes(y = growth, colour = 'Growth'))+
+  geom_line(aes(y = qty_monop, colour = 'Monopoly harvest'))+
+  geom_line(aes(y = q_cournot_harvest, colour = 'Cournot harvest'))+
+  geom_line(aes(y = q_cournot_farmed, colour = 'Cournot farmed'))+
+  theme_bw()+
+  ggtitle('Equilibria for Cournot competition compared to monopoly')
+```
+
+### D. Run prelim analysis : Bertrand
+
+
+```{r}
+# Parameters
+e   = gamma/(beta_w*beta_f - (gamma^2))
+a_f = (alpha_f*beta_w - alpha_w*gamma)/(beta_w*beta_f - (gamma^2))
+a_w = (alpha_w*beta_f - alpha_f*gamma)/(beta_w*beta_f - (gamma^2))
+b_f = beta_f/(beta_w*beta_f - (gamma^2))
+b_w = beta_w/(beta_w*beta_f - (gamma^2))
+
+s_b_own = function(x){
+  y = (2*W*b_w*( b_f*(2*a_w + e*v) + c*((e^2) - 2*b_f*b_w) + e*a_f))/((sigma^2)*(x^2)*(4*b_f*b_w - (e^2)) + 2*W*b_w*(2*b_w*b_f - (e^2)))
+  return(y)
+}
+
+q_b_own = function(x){
+  y = ((sigma^2)*(x^2)*b_w*(b_f*(2*a_w+e*v) + c*((e^2)- 2*b_f*b_w) + e*a_f))/((sigma^2)*(x^2)*(4*b_w*b_f - (e^2)) + 2*W*b_w*(2*b_f*b_w - (e^2)))
+  return(y)
+}
+
+quantity_farmed = function(s){
+  y = b_f *(2*b_w*a_f + v*(e^2 - 2*b_w*b_f) + e*(a_w + (s+c)*b_w))/(4*b_f*b_w - e^2)
+  return(y)
+}
+
+result1 = result1 %>% mutate(q_bertrand_harvest = q_b_own(x),
+                             q_bertrand_farmed = quantity_farmed(s_b_own(x)))
+
+result1 %>%
+  ggplot(aes(x = x))+
+  geom_line(aes(y = qty_monop, colour = 'Monopoly harvest'))+
+  geom_line(aes(y = growth, colour = 'Growth'))+
+  geom_line(aes(y = q_bertrand_harvest, colour = 'Betrand harvest'))+
+  geom_line(aes(y = q_bertrand_farmed, colour = 'Bertrand farmed'))+
+  theme_bw()
+```
+
+Conclusion from preliminary results : 
+ 
+1. Competition only will not change the demise of totoaba
+2. It may help to reach slightly larger steady state values, but will eventually lead to a drastic depletion of the stock
+3. In order to change that dynamic, several interventions would be needed : 
+* For example, one could think about different $(\gamma, v)$ pairs
+* Or consider the effect of being more competitive at the farming level
+
+4. It is unclear what we can do to go beyond our results with this model. 
+
+# Analysis of new scenarios?
+
+For example, can we think of ways that would curb the exploitation? For example, what about cracking down on demand, or technological research that makes production less costly? Or compare the impact of different cost measures for poaching, at the trader and poacher level? 
 
 
 
