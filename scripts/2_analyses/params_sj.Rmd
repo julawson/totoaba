@@ -116,7 +116,8 @@ new_dat %>%
 dat_p %>%
   subset(kg>0.4)%>%
   ggplot(aes(x = year))+
-  geom_point(aes(y = price_kg))
+  geom_point(aes(y = price_kg))+
+  theme_bw()
 ```
 
 ### B. Data reformating : dried totoaba, wet catch
@@ -149,14 +150,21 @@ There is a big difference between estimates! Maybe it makes more sense to use pr
 ### C. Graphical analysis of catch and biomass
 
 ```{r}
+scale = 10
 dat_b %>% 
   ggplot(aes(x=y))+
-  geom_line(aes(y = c))+
-  theme_bw()
-  
+  geom_line(aes(y = c, color = 'Catch (metric tons)'), linewidth = 1.1)+
+  geom_line(aes(y = b/scale, color = 'Biomass (metric tons)'), linewidth = 1.1)+
+  scale_y_continuous(sec.axis = sec_axis(~.*scale, name='Biomass (metric tons)'))+
+  geom_vline(xintercept = 1974, color = 'grey', linewidth = 1, linetype ='dashed')+
+  geom_vline(xintercept = 2010, color = 'grey', linewidth = 1, linetype ='dashed')+
+  scale_color_aaas()+
+  theme_bw()+
+  ylab('Catch in tons of biomass')+
+  xlab('year')
 ```
 
-### C. Attempt 1 : use price per totoaba and variation in realized catch
+### D. Attempt 1 : use price per totoaba and variation in realized catch
 
 
 In what follows : 
@@ -308,7 +316,7 @@ summary(model)
 params = c('alpha', 'beta')
 value = c(model$coefficients[1], - model$coefficients[2])
 concept = c('Demand model : intercept', 'Demand model : coefficient')
-units = c('USD/metric ton of biomass', 'USD/metric ton of biomass')
+units = c('USD', 'USD/metric ton of biomass')
 
 
 catch = dat_b %>%
@@ -320,7 +328,7 @@ price_obs = model$coefficients[1] + model$coefficients[2]*catch
 price_obs = price_obs/1000
 ```
 
-With this model, typically, observed catch in 2017 yields a price of `r price_obs` \$ USD per kilo of totoaba In this case, the value of a 25.7 kilos totoaba is `r 25.7*price_obs` \$
+With this model, typically, observed catch in 2017 yields a price of `r price_obs` \$ USD per kilo of totoaba. In this case, the value of a 25.7 kilos totoaba is `r 25.7*price_obs` \$, and therefore the kilo of buche sells at `r 25.7*2*price_obs` \$.
 
 
 # II. Fish parameters
@@ -341,7 +349,9 @@ units = append(units, c('unitless', 'metric tons of biomass', '% of biomass/vess
 
 ```
 
-# III. Estimating W
+# III. Estimating costs parameters
+
+## A. Estimating cost parameter $W$
 
 From Julia's calculation, we have average cost. Now the procedure is to find the $W$ parameter that minimizes the difference between a straight cost and a quadratic cost. 
 
@@ -458,6 +468,20 @@ MC(E_{hist}) = 2WE_{hist} = \kappa \Rightarrow W = \frac{\kappa}{2E_{hist}}
 $$
 The question remains open as to if or how we control for the final difference in costs to assess profitability in equilibrium. I guess this goes to show that the discussion on the computation of profits is still not settled. 
 
+## B. Finding $c$
+
+In this section, I just streamline the code for the parameter and show the variables we use for them. It is worth noting that $c$ so far is only estimated using data from the fishery cost data. It is likely that other costs come into play for transportation, that factor in the risks along the supply chain, and seizures.
+
+```{r}
+dat_c = read.csv(here("data","c_par.csv"))
+
+# Convert totoaba to metric tons of biomass
+totoaba_ton = dat_c$totoaba_year*25.7/1000
+
+c = dat_c$total_cost/totoaba_ton
+```
+
+
 # V. Simulating the model
 
 ### A. Parameters, units of measure
@@ -489,7 +513,6 @@ sigma = catchability
 
 # Cost parameters:
 W = W_MC[1]
-W = 10
 
 # gamma & v per kilogram of totoaba
 dat_aqua = read.csv(here('data', 'aqua_par_farm.csv'))
@@ -502,10 +525,6 @@ gamma = dat_aqua %>% subset(Gamma>0.6 & Gamma < .7) %>% select(Gamma) %>% pull()
 v = dat_aqua %>% subset(Gamma>0.6 & Gamma < .7) %>% select(cost_per_ton_toto) %>% pull()
 
 # Cost parameter for monopoly : 
-c = 2657.41 # per metric ton of totoaba
-#test
-c = c
-
 params = append(params, c('gamma', 'v', 'c'))
 value = append(value, c(gamma, v, c))
 concept = append(concept, c('Substitutability', 'unit cost of farming', 'unit costs associated with trading'))
@@ -560,6 +579,7 @@ s_c_own = function(x){
 }
 q_farmed_cournot = function(s){
   y = (2 * beta_w * (alpha_f - v) - gamma* (alpha_w - (s + c)) )/(4*beta_w*beta_f - gamma^2)
+  return(y)
 }
 
 result1 = result1 %>% mutate(q_cournot_harvest = q_cournot_wild_own(x),
@@ -634,6 +654,8 @@ Goal here is to leverage this table to do (i) sensitivity analysis and (ii) to i
 calibration = data.frame(params, value, concept, units)
 
 kable(calibration, caption = 'Parameters used for calibration')
+
+write.csv(calibration, here('data','calibration_params.csv'))
 ```
 
 Several comments : 
@@ -648,16 +670,18 @@ Several comments :
 * $v$ can move but unless we pick a shorter rotation, it is more likely to go up if we include operational costs
   + We can have a $v_{net}$ parameter that influences the equilibrium. However, I've ran a couple of tests today, it seems that unless the subsidy is close to a 1,000,000 \$/ton, it does not make a difference.
   + At some point, if profitability is what we aim at tackling, we need to have data on fixed costs and number of pens operating.
-* $c$ can move a lot I think. Our estimate is based on fines, and bribes, and convictions. It's a lot, but I'm sure there is an argument to increase it. 
+* $c$ can move a lot I think. Our estimate is based on fines, and bribes, and convictions on the fishery end. It's a lot, but I'm sure there is an argument to increase it. 
+
+## Sensitivity analysis
+
+The difference between the curves is very small. Several things could be changed from the way we work : 
+
+* $c$ seems too low. For now, $c$ includes only fishery related costs : other costs associated with transports, sanctions and seizures should be factored in. To do so, I'll run a range of values for $c$ ranging from 100% to 500%
+* $v$ seems low as well, as it only includes feed costs for aquaculture. I'll run a range of values for $v$ ranging from 100% to 500%
+* Our choice of $\gamma$ and $v$ are subject to change. $\gamma$ is difficult to take at face value : it is based on a weight ratio, and does not factor in a differential based on wild v. farmed totoaba. Although the weight may be the same, other quality characteristics such as fat content could play a role. 
+In order to manage that, I'll run all the potential values of $\gamma$ and $v$, with adjustment factors for $\gamma$ (from 70% to 100%)
+* For $\alpha$, I'll run specifications ranging from 80 to 120% of the value
 
 
-```{r}
-result1%>%
-  mutate(diff_m_c = qty_monop - q_cournot_harvest,
-         diff_m_b = qty_monop - q_bertrand_harvest,
-         diff_c_b = q_cournot_harvest - q_bertrand_harvest)%>%
-  ggplot(aes(x=x))+
-  geom_line(aes(y = diff_m_c, colour= 'Diff monop & cournot'))+
-  geom_line(aes(y = diff_m_b, colour= 'Diff monop & bertrand'))+
-  geom_line(aes(y = diff_c_b, colour = 'Diff cournot & betrand'))
-```
+
+

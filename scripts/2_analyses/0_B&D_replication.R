@@ -429,7 +429,9 @@ results %>% ggplot(aes(x = x)) +
   geom_line(aes(y = q_cournot_wild_own, colour = 'Cournot'), linewidth = 1.1)+
   geom_line(aes(y = q_b_own, colour = 'Bertrand'), linewidth = 1.1)+
   theme_bw()+
-  scale_color_manual(values = c('green', 'red', 'orange', 'blue'))
+  xlab('Stock')+
+  ylab("Flow (growth, harvest)")+
+  scale_color_manual(values = c('green', 'red', 'grey', 'blue'))
 
 ### VII. Rationalizing the way they work for Lemma 2 #####
 
