@@ -683,5 +683,16 @@ In order to manage that, I'll run all the potential values of $\gamma$ and $v$, 
 * For $\alpha$, I'll run specifications ranging from 80 to 120% of the value
 
 
+```{r}
+dat_sensititivy = read.csv(here('data', 'sensitivity_analysis.csv'))
+print('Distribution of monopoly steady states')
+summary(dat_sensititivy$ss_monop_1)
+
+print('Distribution of Cournot steady states')
+summary(dat_sensititivy$ss_cournot_1)
+
+print('Distribution of Betrand steady states')
+summary(dat_sensititivy$ss_bertrand_1)
+```
 
 
