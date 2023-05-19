@@ -185,9 +185,9 @@ v_par <- read.csv(here("data","v_par.csv")) # Farming cost data, from Buche Bros
 aqua_par_w <- read.csv(here("data","aqua_par_wild.csv"))
 aqua_par_f <- read.csv(here("data","aqua_par_farm.csv"))
 
-v_par <- v_par %>% 
-  mutate(operating_costs = (maintenance_year+cleaning_year+vessel_maintenance_year+fuel_year+feed+labor+facility_lease+admin)) %>% 
-  mutate(operating_costs/capacity_per_sphere_t)
+v_par <- v_par 
+
+# The second line removes pseudo-fixed costs associated with staffing (office, hatchery, farming, leasing facility space, etc.). These costs would be somewhat fixed even if the number of cages increased (to a certain extent).
 
 ```
 
