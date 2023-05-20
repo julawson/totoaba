@@ -340,7 +340,7 @@ r = 0.039
 k = 20226 # in metric tons of biomass from INAPESCA
 k_ = k*1000 # in kilos
 
-catchability = 0.0005526788/25.7# in vessel trips ^-1
+catchability = 0.0005526788*25.7# in vessel trips ^-1
 
 params = append(params, c('r', 'k','sigma'))
 value = append(value, c(r, k, catchability))
