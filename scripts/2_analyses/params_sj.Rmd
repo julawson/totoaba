@@ -340,9 +340,7 @@ r = 0.039
 k = 20226 # in metric tons of biomass from INAPESCA
 k_ = k*1000 # in kilos
 
-catchability = 0.0005526788*25.7# in vessel trips ^-1
-catchability = dat_b %>% subset(y==2016) %>% select(c)/(max_E *dat_b %>% subset(y==2016) %>% select(b))
-catchability = pull(catchability)
+catchability = 0.0005526788*25.7/1000# in vessel trips ^-1
 
 params = append(params, c('r', 'k','sigma'))
 value = append(value, c(r, k, catchability))
@@ -360,6 +358,10 @@ From Julia's calculation, we have average cost. Now the procedure is to find the
 ```{r}
 dat_w = read.csv(here("data", "w_par.csv"))
 max_E = sum(dat_w$total_fleet_days_year)
+catchability = dat_b %>% 
+  subset(y==2016) %>% 
+  select(c)/(max_E *dat_b %>% subset(y==2016) %>% select(b))
+catchability = pull(catchability)
 ```
 
 ```{r}
@@ -636,7 +638,47 @@ result1 %>%
   theme_bw()
 ```
 
-Conclusion from preliminary results : 
+## E. Parse all
+
+```{r}
+result1 = result1 %>% mutate(ss_monop = growth - qty_monop,
+                               ss_cournot = growth - q_cournot_harvest,
+                               ss_bertrand = growth - q_bertrand_harvest)
+steady_states = c()
+  
+for(variable in c('ss_monop', 'ss_cournot', 'ss_bertrand')){
+  ss = which(sign(eval(parse(text = paste0('result1$',variable)))) != lag(sign(eval(parse(text = paste0('result1$', variable))))))
+    if(length(ss)==1){
+      steady_states = append(steady_states, c(result1[ss, 1], 
+                                              NA,
+                                              NA))
+    }else if(length(ss)==2){
+      steady_states = append(steady_states, c(result1[1, ss[1]], 
+                                              result1[1, ss[2]],
+                                              NA))
+    }else if(lenght(ss)==3){
+      steady_states = append(steady_states, c(result1[1, ss[1]], 
+                                              result1[1, ss[2]],
+                                              result1[2, ss[3]]))
+    }
+  }
+print(steady_states)
+
+plot = result1 %>%
+    ggplot(aes(x=x))+
+    geom_line(aes(y = growth, colour = 'Growth'), linewidth = 1)+
+    geom_line(aes(y = qty_monop, colour = 'Monopoly'), linewidth = 1)+
+    geom_line(aes(y = q_cournot_harvest, colour = 'Cournot'), linewidth = 1)+
+    geom_line(aes(y = q_bertrand_harvest, colour = 'Bertrand'), linewidth = 1)+
+  theme_bw()+
+  ylab('Growth / harvest')+
+  scale_color_aaas()
+
+  
+```
+
+
+## F. Conclusion from preliminary results : 
  
 1. Competition only will not change the demise of totoaba
 2. It may help to reach slightly larger steady state values, but will eventually lead to a drastic depletion of the stock
