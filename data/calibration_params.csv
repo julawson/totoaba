@@ -1,45 +1,35 @@
-,params,value,concept,units
-1,alpha,1587792.397,Demand model : intercept,USD
-2,beta,1527.159805,Demand model : coefficient,USD/metric ton of biomass
-3,r,0.039,intrinsic growth rate,unitless
-4,k,20226,carrying capacity,metric tons of biomass
-5,sigma,1.42E-05,catchability,% of biomass/vessel trips
-6,r,0.2012827,intrinsic growth rate,unitless
-7,k,20226,carrying capacity,metric tons of biomass
-8,sigma,1.42E-05,catchability,% of biomass/vessel trips
-9,W_mid,2.139411458,Parameter cost such that MC are equal at historical value - middle,USD
-10,W_low,1.039653646,Parameter cost such that MC are equal at historical value - low,USD
-11,W_high,3.4708125,Parameter cost such that MC are equal at historical value - high,USD
-12,avg_cost,8215.34,Average cost per vessel trip in data,USD
-13,age,4,age of totoaba raised,years
-14,gamma_prim,0.623180841,Substitution based on weight,unitless
-15,gamma,951.6967318,Substitutability,unitless
-16,v,45172,unit cost of farming,USD/ton of biomass
-17,c,2658.197283,unit costs associated with trading,USD/ton of biomass
-18,r,0.039,intrinsic growth rate,unitless
-19,k,20226,carrying capacity,metric tons of biomass
-20,sigma,1.42E-05,catchability,% of biomass/vessel trips
-21,W_mid,2.139411458,Parameter cost such that MC are equal at historical value - middle,USD
-22,W_low,1.039653646,Parameter cost such that MC are equal at historical value - low,USD
-23,W_high,3.4708125,Parameter cost such that MC are equal at historical value - high,USD
-24,avg_cost,8215.34,Average cost per vessel trip in data,USD
-25,age,4,age of totoaba raised,years
-26,gamma_prim,0.623180841,Substitution based on weight,unitless
-27,gamma,951.6967318,Substitutability,unitless
-28,v,45172,unit cost of farming,USD/ton of biomass
-29,c,2658.197283,unit costs associated with trading,USD/ton of biomass
-30,r,0.2012827,intrinsic growth rate,unitless
-31,k,20226,carrying capacity,metric tons of biomass
-32,sigma,1.42E-05,catchability,% of biomass/vessel trips
-33,r,0.2012827,intrinsic growth rate,unitless
-34,k,20226,carrying capacity,metric tons of biomass
-35,sigma,1.42E-05,catchability,% of biomass/vessel trips
-36,W_mid,2.139411458,Parameter cost such that MC are equal at historical value - middle,USD
-37,W_low,1.039653646,Parameter cost such that MC are equal at historical value - low,USD
-38,W_high,3.4708125,Parameter cost such that MC are equal at historical value - high,USD
-39,avg_cost,8215.34,Average cost per vessel trip in data,USD
-40,age,4,age of totoaba raised,years
-41,gamma_prim,0.623180841,Substitution based on weight,unitless
-42,gamma,951.6967318,Substitutability,unitless
-43,v,45172,unit cost of farming,USD/ton of biomass
-44,c,2658.197283,unit costs associated with trading,USD/ton of biomass
+"","params","value","concept","units"
+"1","alpha",1587792.39661445,"Demand model : intercept","USD"
+"2","beta",1527.15980534519,"Demand model : coefficient","USD/metric ton of biomass"
+"3","r",0.2012827,"intrinsic growth rate","unitless"
+"4","k",20226,"carrying capacity","metric tons of biomass"
+"5","sigma",0.00001420384516,"catchability","% of biomass/vessel trips"
+"6","W_mid",2.13941145833333,"Parameter cost such that MC are equal at historical value - middle","USD"
+"7","W_low",1.03965364583333,"Parameter cost such that MC are equal at historical value - low","USD"
+"8","W_high",3.4708125,"Parameter cost such that MC are equal at historical value - high","USD"
+"9","avg_cost",8215.34,"Average cost per vessel trip in data","USD"
+"10","age",4,"age of totoaba raised","years"
+"11","gamma_prim",0.623180841,"Substitution based on weight","unitless"
+"12","gamma",951.696731836412,"Substitutability","unitless"
+"13","v",45172,"unit cost of farming","USD/ton of biomass"
+"14","c",2658.197283344,"unit costs associated with trading","USD/ton of biomass"
+"15","age",4,"age of totoaba raised","years"
+"16","gamma_prim",0.623180841,"Substitution based on weight","unitless"
+"17","gamma",951.696731836412,"Substitutability","unitless"
+"18","v",45172,"unit cost of farming","USD/ton of biomass"
+"19","c",2658.197283344,"unit costs associated with trading","USD/ton of biomass"
+"20","age",4,"age of totoaba raised","years"
+"21","gamma_prim",0.623180841,"Substitution based on weight","unitless"
+"22","gamma",951.696731836412,"Substitutability","unitless"
+"23","v",45172,"unit cost of farming","USD/ton of biomass"
+"24","c",2658.197283344,"unit costs associated with trading","USD/ton of biomass"
+"25","age",5,"age of totoaba raised","years"
+"26","gamma_prim",1.059562923,"Substitution based on weight","unitless"
+"27","gamma",1618.12190723966,"Substitutability","unitless"
+"28","v",56465,"unit cost of farming","USD/ton of biomass"
+"29","c",2658.197283344,"unit costs associated with trading","USD/ton of biomass"
+"30","age",4,"age of totoaba raised","years"
+"31","gamma_prim",0.623180841,"Substitution based on weight","unitless"
+"32","gamma",951.696731836412,"Substitutability","unitless"
+"33","v",45172,"unit cost of farming","USD/ton of biomass"
+"34","c",2658.197283344,"unit costs associated with trading","USD/ton of biomass"
