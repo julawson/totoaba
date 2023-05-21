@@ -666,18 +666,45 @@ for(variable in c('ss_monop', 'ss_cournot', 'ss_bertrand')){
   }
 print(steady_states)
 
+actual_steady = steady_states[!is.na(steady_states)]
+
 plot = result1 %>%
-    ggplot(aes(x=x))+
-    geom_line(aes(y = growth, colour = 'Growth'), linewidth = 1)+
-    geom_line(aes(y = qty_monop, colour = 'Monopoly'), linewidth = 1)+
-    geom_line(aes(y = q_cournot_harvest, colour = 'Cournot'), linewidth = 1)+
-    geom_line(aes(y = q_bertrand_harvest, colour = 'Bertrand'), linewidth = 1)+
+  ggplot(aes(x=x))+
+  geom_line(aes(y = growth, colour = 'Growth'), linewidth = 1)+
+  geom_line(aes(y = qty_monop, colour = 'Monopoly'), linewidth = 1)+
+  geom_line(aes(y = q_cournot_harvest, colour = 'Cournot'), linewidth = 1)+
+  geom_line(aes(y = q_bertrand_harvest, colour = 'Bertrand'), linewidth = 1)+
   theme_bw()+
   ylab('Growth / harvest')+
   scale_color_aaas()
+# Do we know why adding geom_segments to the plot did not work in a loop? Most likely will be three ss though
+plot +
+  geom_segment(x = actual_steady[1], xend = actual_steady[1], y=0, yend=growth(actual_steady[1]))+
+  geom_segment(x = actual_steady[2], xend = actual_steady[2], y=0, yend=growth(actual_steady[2]))+
+  geom_segment(x = actual_steady[3], xend = actual_steady[3], y=0, yend=growth(actual_steady[3]))
 
-plot
-  
+```
+
+Zoomed output (for both this code snippet and the one before, could be good to make a function to analyse the data from sensitivity analysis.) 
+```{r}
+result1 %>%
+  subset(x < 1.5*max(actual_steady))%>%
+  ggplot(aes(x=x))+
+  geom_line(aes(y = growth, colour = 'Growth'), linewidth = 1)+
+  geom_line(aes(y = qty_monop, colour = 'Monopoly'), linewidth = 1)+
+  geom_line(aes(y = q_cournot_harvest, colour = 'Cournot'), linewidth = 1)+
+  geom_line(aes(y = q_bertrand_harvest, colour = 'Bertrand'), linewidth = 1)+
+  # Vertical lines
+  geom_segment(x = actual_steady[1], xend = actual_steady[1], y=0, yend=growth(actual_steady[1]), linetype = 2)+
+  geom_segment(x = actual_steady[2], xend = actual_steady[2], y=0, yend=growth(actual_steady[2]), linetype = 2)+
+  geom_segment(x = actual_steady[3], xend = actual_steady[3], y=0, yend=growth(actual_steady[3]), linetype = 2)+
+  # Horizontal lines
+  geom_segment(x = 0, xend = actual_steady[1], y=growth(actual_steady[1]), yend=growth(actual_steady[1]), linetype = 2)+
+  geom_segment(x = 0, xend = actual_steady[2], y=growth(actual_steady[2]), yend=growth(actual_steady[2]), linetype = 2)+
+  geom_segment(x = 0, xend = actual_steady[3], y=growth(actual_steady[3]), yend=growth(actual_steady[3]), linetype = 2)+
+  theme_bw()+
+  ylab('Growth / harvest')+
+  scale_color_aaas()
 ```
 
 Outputs of the model are: 
@@ -777,7 +804,7 @@ summary(dat_sensititivy$ss_bertrand_1)
 Plan is therefore : 
 * Sunday : 
   + Settle parameters
-  + Finish results
+  + Finish results : check if there are all the desired outputs in the second module I'm prepping for the analysis of steady state results (see file `r sensitivity_analysis.Rmd`, section 'define function to run model').
   + Run sensitivity analysis : it includes various subsidy schemes (see file `r sensitivity_analysis.Rmd`), ranging from 20% to 200% of unit production cost. 
 * Monday : 
   + finish writing results the best way possible

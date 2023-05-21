@@ -19,7 +19,8 @@ rm(list = ls())
 ```
 
 
-# Load parameters for baseline
+## A. Load parameters for baseline
+
 ```{r}
 
 calibration = read.csv(here('data', 'calibration_params.csv'))
@@ -31,7 +32,8 @@ for(i in 1:nrow(calibration)){
 W = W_mid
 ```
 
-# Define the parameters for sensitivity analysis
+## B. Define the parameters for sensitivity analysis
+
 ```{r}
 # Values for c
 c_sens = c(c, c*5, c*10, c*20)
@@ -62,9 +64,10 @@ for (i in c(.01,.5,.9)){
                          v_gamma_join)
 }
 
-
+# Store
 v_gamma_dat = rbind(v_gamma_dat,
                     v_gamma_tojoin)
+
 #Loop to amend gamma
 v_gamma_tojoin = data.frame()
 for (i in c(.8,1.2)){
@@ -74,10 +77,12 @@ for (i in c(.8,1.2)){
   v_gamma_tojoin = rbind(v_gamma_tojoin, 
                          v_gamma_join)
 }
+# Store and clean
 v_gamma_dat = rbind(v_gamma_dat,
                     v_gamma_tojoin)
 rm(v_gamma_join, v_gamma_tojoin)
 
+# Get a grid of all possible combinations we may want to try
 params_sensitivity = expand.grid(v_gamma_dat$gamma, 
                                  v_gamma_dat$v, 
                                  c_sens,
@@ -85,15 +90,28 @@ params_sensitivity = expand.grid(v_gamma_dat$gamma,
                                  r_sens)
 colnames(params_sensitivity) = c('gamma_primitive', 'v', 'c', 'alpha', 'r')
 
+# Fix gamma
 params_sensitivity= params_sensitivity %>%
   mutate(gamma = gamma_primitive * beta)
 
+# Include other parameters to load for parallel computing
 other_params = data.frame(k, sigma, W, beta)%>%
    slice(rep(1:n(), each = nrow(params_sensitivity)))
+
+# Finally, get all the parameter combinations we want to do the model on
 params_sensitivity = cbind(other_params, params_sensitivity)
+print(paste0('There are ', nrow(params_sensitivity)," combinations to test" ))
 ```
 
-# Define function to run model
+## C. Define function to run model
+
+In this section, I have not yet perfected the outputs of the models. I think it might be good to keep it like that, and then to define a second function to track the equilibrium outputs. So far, the functions return the equilibrium values of the stock. A second module (maybe tomorrow) will compute : 
+
+* Equilibrium farmed and harvested quantities
+* Prices paid to poachers
+* Profits
+
+
 ```{r}
 run_model = function(){
   # Function to run the model simulation
@@ -191,6 +209,7 @@ run_model = function(){
   return(steady_states)
 }
 
+#Define parallelized version
 run_model_par = function(params){
   
   k     = params[1]
@@ -283,13 +302,13 @@ run_model_par = function(params){
                                               NA,
                                               NA))
     }else if(length(ss)==2){
-      steady_states = append(steady_states, c(result1[1, ss[1]], 
-                                              result1[1, ss[2]],
+      steady_states = append(steady_states, c(result1[ss[1], 1], 
+                                              result1[ss[2], 1],
                                               NA))
     }else if(length(ss)==3){
-      steady_states = append(steady_states, c(result1[1, ss[1]], 
-                                              result1[1, ss[2]],
-                                              result1[2, ss[3]]))
+      steady_states = append(steady_states, c(result1[ss[1],1], 
+                                              result1[ss[2],1],
+                                              result1[ss[3],1]))
     }else if(length(ss)==0){
       steady_states = append(steady_states, c(NA, NA, NA))
     }
@@ -302,33 +321,68 @@ run_model_par = function(params){
 ```
 
 
+## D. Multiprocessing run
 
-Now, use multiprocessing to perform analysis. I define chunks and then let the code run on the chunks of data. 
+Now, use multiprocessing to perform analysis. I define chunks and then let the code run on the chunks of data. To run the model, define `r run_ = T`, otherwise leave it as is, and load the data. 
 
 ```{r}
+run_ = T
 # Check how many cores we can use, set 4 aside to keep using computer
-numcores = detectCores() - 4
+if(run_==T){
+  numcores = detectCores() - 4
 # Set up storage
-store = data.frame()
+  store = data.frame()
 
 # Set up the width of each run
-width = 6400*3
-number_op = nrow(params_sensitivity)/width
+  width = 6400*3
+  number_op = nrow(params_sensitivity)/width
 
 # Loop over several runs is faster than 1 big run
-for (x in 1:number_op){
-  cl = makeCluster(numcores)
-  clusterEvalQ(cl,  library(tidyverse))
+  for (x in 1:number_op){
+    # Make clusters
+    cl = makeCluster(numcores)
+    # Load tidyverse : otherwise, pipe operator is not recognized
+    clusterEvalQ(cl,  library(tidyverse))
 
+    # Start timer
+    start = Sys.time()
+    # Apply function accross nodes with a slice of the data of lenght width
+    a = parApply(cl, 
+                 params_sensitivity[width*(x-1)+1:width*x,],
+                 1,
+                 run_model_par)
+    print(Sys.time() - start)
 
-  start = Sys.time()
-  a = parApply(cl, params_sensitivity[width*(x-1)+1:width*x,],1, run_model_par)
-  print(paste0('Code took ', str(Sys.time() - start)))
+    a = as.data.frame(a)
 
-  a = as.data.frame(a)
-
-  store = rbind(store, t(a))
+    store = rbind(store, t(a))
+  }
+  write.csv(store, here('data', 'sensitivity_steady_states.csv'))
+}else{
+  sensitivity = read.csv(here('data','sensitivity_steady_state.csv'))
 }
+
+```
+
+## E. Evaluate steady state outcomes
+
+```{r}
+# Need to load all the parameters
+
+# EXISTING : 
+  # Get quantities for harvest with growth(x)
+  # Load function for farming, apply them to x
+  # Price paid to poachers
+
+# TO MAKE : 
+  # Price
+  # Profit
+
+# OUTPUT : tidy data to leverage ggplot, we're gonna have a lot of stuff to plot.
+  # Data table
+  # Column 1 : number
+  # Column 2 : label for quantity
+  # Columns 3... : parameters
 
 ```
 
