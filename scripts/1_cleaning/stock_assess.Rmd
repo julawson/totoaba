@@ -1,0 +1,41 @@
+---
+title: "Re-fitting data to Pella Tomlinson"
+author: "Julia Lawson"
+date: "2023-05-19"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = F)
+options(scipen=999)
+
+library(tidyverse)
+library(ggsci)
+library(here)
+library(knitr)
+library(stargazer)
+library(kableExtra)
+
+library(MQMF)
+
+devtools::install_github("james-thorson/FishLife")
+library(FishLife)
+```
+
+```{r assessment}
+
+# Get basic plot for Lutjanus campechanus (in database, so prediction is informed by species-specific data)
+Plot_taxa( Search_species(Genus="Totoaba",Species="macdonaldi")$match_taxonomy )
+
+params = matrix( c("K","M", "G", "r" ,"ln_MASPS"), ncol=2, byrow=TRUE)
+Predict = Plot_taxa( Search_species(Genus="Totoaba",Species="macdonaldi")$match_taxonomy, mfrow=c(2,2) )
+
+```
+
+```{r, echo=FALSE, results='asis'}
+knitr::kable(Predict[[1]]$Mean_pred, digits=3)
+
+Predict[[1]]$Mean_pred %>%
+  kbl() %>%
+  kable_styling()
+```
