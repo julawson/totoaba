@@ -336,7 +336,7 @@ With this model, typically, observed catch in 2017 yields a price of `r price_ob
 Julia has set up the growth and catchability parameters
 ```{r}
 
-r = 0.039
+r = 0.2012827
 k = 20226 # in metric tons of biomass from INAPESCA
 k_ = k*1000 # in kilos
 
