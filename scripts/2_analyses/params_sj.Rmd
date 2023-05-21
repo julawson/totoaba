@@ -523,17 +523,19 @@ dat_aqua = read.csv(here('data', 'aqua_par_farm.csv'))
 dat_aqua = dat_aqua %>%
   mutate(cost_per_kilo_toto = Totoaba_Age*2,
          cost_per_ton_toto = cost_per_kilo_toto * 1000,
-         cost_per_kilo_buche = cost_per_kilo_toto/conv)
+         cost_per_kilo_buche = cost_per_kilo_toto/conv,
+         actual_v = 11293*Totoaba_Age)
 
-gamma = dat_aqua %>% subset(Gamma>0.6 & Gamma < .7) %>% select(Gamma) %>% pull()
-gamma = gamma*beta
-v = dat_aqua %>% subset(Gamma>0.6 & Gamma < .7) %>% select(cost_per_ton_toto) %>% pull()
+gamma_prim = dat_aqua %>% subset(Gamma>0.6 & Gamma < .7) %>% select(Gamma) %>% pull()
+age = dat_aqua %>% subset(Gamma>0.6 & Gamma < .7) %>% select(Totoaba_Age) %>% pull()
+gamma = gamma_prim*beta
+v = dat_aqua %>% subset(Gamma>0.6 & Gamma < .7) %>% select(actual_v) %>% pull()
 
 # Cost parameter for monopoly : 
-params = append(params, c('gamma', 'v', 'c'))
-value = append(value, c(gamma, v, c))
-concept = append(concept, c('Substitutability', 'unit cost of farming', 'unit costs associated with trading'))
-units = append(units, c('unitless', 'USD/ton of biomass', 'USD/ton of biomass'))
+params = append(params, c('age','gamma_prim','gamma', 'v', 'c'))
+value = append(value, c(age,gamma_prim, gamma, v, c))
+concept = append(concept, c('age of totoaba raised', 'Substitution based on weight', 'Substitutability', 'unit cost of farming', 'unit costs associated with trading'))
+units = append(units, c('years', 'unitless', 'unitless', 'USD/ton of biomass', 'USD/ton of biomass'))
 
 ```
 
@@ -674,13 +676,38 @@ plot = result1 %>%
   ylab('Growth / harvest')+
   scale_color_aaas()
 
+plot
   
+```
+
+Outputs of the model are: 
+```{r}
+# Analyse market prices : 
+
+bertrand_ss = steady_states[6:9]
+
+# In case of monopoly : 
+dat_monop = result1 %>% subset(x %in% steady_states[4:6]) %>%
+  select(qty_monop)%>%
+  mutate(p = alpha - beta*qty_monop)
+kable(dat_monop)
+# In case of cournot :
+dat_cournot = result1 %>% subset(x %in% steady_states[4:6])%>%
+  select(q_cournot_farmed, q_cournot_harvest)%>%
+  mutate(price_paid_to_poacher = s_c_own(x))
+kable(dat_cournot)
+# In case of Bertrand : 
+dat_bertrand = result1 %>% subset(x %in% steady_states[7:9])%>%
+  select(q_bertrand_farmed, q_bertrand_harvest)%>%
+  mutate(price_paid_to_poacher = s_b_own(x),
+         diff_cost = price_paid_to_poacher + c - v)
+kable(dat_bertrand)
 ```
 
 
 ## F. Conclusion from preliminary results : 
  
-1. Competition only will not change the demise of totoaba
+1. Competition only will not *radically* change the demise of totoaba
 2. It may help to reach slightly larger steady state values, but will eventually lead to a drastic depletion of the stock
 3. In order to change that dynamic, several interventions would be needed : 
 * For example, one could think about different $(\gamma, v)$ pairs
@@ -691,6 +718,7 @@ plot = result1 %>%
 # Analysis of new scenarios?
 
 For example, can we think of ways that would curb the exploitation? For example, what about cracking down on demand, or technological research that makes production less costly? Or compare the impact of different cost measures for poaching, at the trader and poacher level? 
+
 # Table for parameters (values, concept and units)
 
 Goal here is to leverage this table to do (i) sensitivity analysis and (ii) to investigate policy scenarios
@@ -741,3 +769,54 @@ summary(dat_sensititivy$ss_bertrand_1)
 ```
 
 
+# To do
+
+* Verify $r$
+* Get profits and quantities as an output of the model, to retro engineer the choice of $\gamma$. Can be a cool side result to check if optimal rotation changes with imperfect competition. 
+
+Plan is therefore : 
+* Sunday : 
+  + Settle parameters
+  + Finish results
+  + Run sensitivity analysis : it includes various subsidy schemes (see file `r sensitivity_analysis.Rmd`), ranging from 20% to 200% of unit production cost. 
+* Monday : 
+  + finish writing results the best way possible
+  + Finalize calibration, especially data sources
+  + Write discussion
+  
+# Simple figure for paper:
+
+```{r}
+qty_monop = function(x){
+ y = (400 - 4)*.02^2 * x^2 / (2*80* 0.02^2 * x^2 + 2*5)
+ return(y)
+}
+
+growth = function(x){
+  y = 0.1*x*(1-x/100)
+  return(y)
+}
+  
+data.frame(x = seq(1,100))%>%
+  mutate(monop = qty_monop(x),
+           growth = growth(x))%>%
+  ggplot(aes(x = x))+
+  geom_line(aes(y = monop, colour = 'Harvest'), linewidth = 1.2)+
+  geom_line(aes(y = growth, colour = 'Growth'), linewidth = 1.2)+
+  scale_color_manual(values = c( 'grey','black'))+
+  ylim(0,2.5)+
+  ylab('Quantity')+
+  xlab('Stock')+
+  theme_classic()+
+  geom_segment(x = 8, xend = 8, y = 0, yend= .75, linetype = 2)+
+  geom_segment(x = 31, xend = 31, y = 0, yend= 2.1, linetype = 2)+
+  geom_segment(x = 61, xend = 61, y = 0, yend= 2.35, linetype = 2)+
+  annotate('text', x = 15, y = .7, label= 'stable')+
+  annotate('text', x = 25, y = 2.2, label= 'unstable')+
+  annotate('text', x = 65, y = 2.45, label= 'stable')+
+  theme(legend.position = "none")
+
+```
+
+
+  

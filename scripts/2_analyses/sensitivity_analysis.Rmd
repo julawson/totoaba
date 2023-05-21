@@ -27,15 +27,82 @@ calibration = read.csv(here('data', 'calibration_params.csv'))
 for(i in 1:nrow(calibration)){
   assign(calibration$params[i], calibration$value[i])
 }
+
 W = W_mid
+```
+
+# Define the parameters for sensitivity analysis
+```{r}
+# Values for c
+c_sens = c(c, c*5, c*10, c*20)
+
+# Values for alpha
+alpha_sens = c(.8*alpha, .9*alpha, alpha)
+
+r_sens = c(.8*r, r, 1.2*r)
+# Values for alpha
+dat_aqua = read.csv(here("data", "aqua_par_farm.csv"))
+dat_aqua = dat_aqua %>% mutate(v = 11293*Totoaba_Age)
+v_gamma_dat = dat_aqua %>% 
+  mutate(cost_per_kilo_toto = Totoaba_Age*2,
+         cost_per_ton_toto = cost_per_kilo_toto * 1000)%>%
+  subset(Gamma<1.5) %>%
+  select(Gamma,
+         v)%>%
+  rename(gamma = Gamma)
+
+# Loop to change the values of v
+v_gamma_tojoin = data.frame()
+
+for (i in c(.01,.5,.9)){
+  v_gamma_join = data.frame(v_gamma_dat$gamma, 
+                            v_gamma_dat$v*i)
+  colnames(v_gamma_join) = colnames(v_gamma_dat)
+  v_gamma_tojoin = rbind(v_gamma_tojoin, 
+                         v_gamma_join)
+}
+
+
+v_gamma_dat = rbind(v_gamma_dat,
+                    v_gamma_tojoin)
+#Loop to amend gamma
+v_gamma_tojoin = data.frame()
+for (i in c(.8,1.2)){
+  v_gamma_join = data.frame(v_gamma_dat$gamma*i, 
+                            v_gamma_dat$v)
+  colnames(v_gamma_join) = colnames(v_gamma_dat)
+  v_gamma_tojoin = rbind(v_gamma_tojoin, 
+                         v_gamma_join)
+}
+v_gamma_dat = rbind(v_gamma_dat,
+                    v_gamma_tojoin)
+rm(v_gamma_join, v_gamma_tojoin)
+
+params_sensitivity = expand.grid(v_gamma_dat$gamma, 
+                                 v_gamma_dat$v, 
+                                 c_sens,
+                                 alpha_sens,
+                                 r_sens)
+colnames(params_sensitivity) = c('gamma_primitive', 'v', 'c', 'alpha', 'r')
+
+params_sensitivity= params_sensitivity %>%
+  mutate(gamma = gamma_primitive * beta)
+
+other_params = data.frame(k, sigma, W, beta)%>%
+   slice(rep(1:n(), each = nrow(params_sensitivity)))
+params_sensitivity = cbind(other_params, params_sensitivity)
 ```
 
 # Define function to run model
 ```{r}
 run_model = function(){
   # Function to run the model simulation
-  # Output is : steady state values?
-  # curves?
+  # 0. Define growth = 
+  growth = function(x){
+    y = r*x*(1-x/k)
+    return(y)
+  }
+  
   # 1. Run monopoly
   qty_monop = function(x){
     y = (alpha - c)*sigma^2 * x^2 / (2*beta* sigma^2 * x^2 + 2*W)
@@ -51,7 +118,7 @@ run_model = function(){
   alpha_f = alpha
   beta_w = beta
   beta_f = beta
-  
+
   q_cournot_wild_own = function(x){
     y = ((sigma^2)*(x^2)*(2*beta_f*(alpha_w - c) - gamma*(alpha_f - v)))/(4*beta_f*W +     (sigma^2)*(x^2)*(4*beta_f*beta_w - (gamma^2)))
     return(y)
@@ -114,119 +181,157 @@ run_model = function(){
       steady_states = append(steady_states, c(result1[1, ss[1]], 
                                               result1[1, ss[2]],
                                               NA))
-    }else if(lenght(ss)==3){
+    }else if(length(ss)==3){
       steady_states = append(steady_states, c(result1[1, ss[1]], 
                                               result1[1, ss[2]],
                                               result1[2, ss[3]]))
     }
     
   }
-  
   return(steady_states)
 }
 
-```
+run_model_par = function(params){
+  
+  k     = params[1]
+  sigma = params[2]
+  W     = params[3]
+  beta  = params[4]
+  v     = params[6]
+  c     = params[7]
+  alpha = params[8]
+  r     = params[9]
+  gamma = params[10]
 
+  # Function to run the model simulation
+  # 0. Define growth = 
+  growth = function(x){
+    y = r*x*(1-x/k)
+    return(y)
+  }
+  
+  # 1. Run monopoly
+  qty_monop = function(x){
+    y = (alpha - c)*sigma^2 * x^2 / (2*beta* sigma^2 * x^2 + 2*W)
+    return(y)
+  }
+  # Store results
+  result1 = data.frame(x = seq(1, k))%>%
+    mutate(growth = growth(x),
+           qty_monop = qty_monop(x),
+           differ = growth - qty_monop)
+  # 2. Run Cournot
+  alpha_w = alpha
+  alpha_f = alpha
+  beta_w = beta
+  beta_f = beta
 
-# Define the parameters for sensitivity analysis
-```{r}
-# Values for c
-c_sens = c(c, c*2, c*3, c*4, c*5)
-
-# Values for alpha
-alpha_sens = c(.8*alpha, .9*alpha, alpha, 1.1*alpha, 1.2*alpha)
-
-# Values for alpha
-dat_aqua = read.csv(here("data", "aqua_par_farm.csv"))
-v_gamma_dat = dat_aqua %>% 
-  mutate(cost_per_kilo_toto = Totoaba_Age*2,
-         cost_per_ton_toto = cost_per_kilo_toto * 1000)%>%
-  subset(Gamma<1.5) %>%
-  select(Gamma,
-         cost_per_ton_toto)%>%
-  rename(gamma = Gamma, 
-         v = cost_per_ton_toto)
-
-# Loop to change the values of v
-v_gamma_tojoin = data.frame()
-
-for (i in 2:5){
-  v_gamma_join = data.frame(v_gamma_dat$gamma, 
-                            v_gamma_dat$v*i)
-  colnames(v_gamma_join) = colnames(v_gamma_dat)
-  v_gamma_tojoin = rbind(v_gamma_tojoin, 
-                         v_gamma_join)
+  q_cournot_wild_own = function(x){
+    y = ((sigma^2)*(x^2)*(2*beta_f*(alpha_w - c) - gamma*(alpha_f - v)))/(4*beta_f*W +     (sigma^2)*(x^2)*(4*beta_f*beta_w - (gamma^2)))
+    return(y)
+  }
+  
+  s_c_own = function(x){
+    y = (2*W*(2*beta_f*(alpha_w - c) - gamma*(alpha_f - v)))/((sigma^2)*(x^2)*(4*beta_f*beta_w - gamma^2) + 4*beta_f*W)
+    return(y)
+  }
+  q_farmed_cournot = function(s){
+    y = (2 * beta_w * (alpha_f - v) - gamma* (alpha_w - (s + c)) )/(4*beta_w*beta_f - gamma^2)
+    return(y)
+  }
+  
+  result1 = result1 %>% mutate(q_cournot_harvest = q_cournot_wild_own(x),
+                               q_cournot_farmed = q_farmed_cournot(s_c_own(x)))
+  
+  # Run Betrand : 
+  e   = gamma/(beta_w*beta_f - (gamma^2))
+  a_f = (alpha_f*beta_w - alpha_w*gamma)/(beta_w*beta_f - (gamma^2))
+  a_w = (alpha_w*beta_f - alpha_f*gamma)/(beta_w*beta_f - (gamma^2))
+  b_f = beta_f/(beta_w*beta_f - (gamma^2))
+  b_w = beta_w/(beta_w*beta_f - (gamma^2))
+  
+  s_b_own = function(x){
+    y = (2*W*b_w*( b_f*(2*a_w + e*v) + c*((e^2) - 2*b_f*b_w) + e*a_f))/((sigma^2)*(x^2)*(4*b_f*b_w - (e^2)) + 2*W*b_w*(2*b_w*b_f - (e^2)))
+    return(y)
+  }
+  
+  q_b_own = function(x){
+    y = ((sigma^2)*(x^2)*b_w*(b_f*(2*a_w+e*v) + c*((e^2)- 2*b_f*b_w) + e*a_f))/((sigma^2)*(x^2)*(4*b_w*b_f - (e^2)) + 2*W*b_w*(2*b_f*b_w - (e^2)))
+    return(y)
+  }
+  
+  quantity_farmed = function(s){
+    y = b_f *(2*b_w*a_f + v*(e^2 - 2*b_w*b_f) + e*(a_w + (s+c)*b_w))/(4*b_f*b_w - e^2)
+    return(y)
+  }
+  
+  result1 = result1 %>% mutate(q_bertrand_harvest = q_b_own(x),
+                               q_bertrand_farmed = quantity_farmed(s_b_own(x)))
+  
+  # Find steady states : 
+  
+  result1 = result1 %>% mutate(ss_monop = growth - qty_monop,
+                               ss_cournot = growth - q_cournot_harvest,
+                               ss_bertrand = growth - q_bertrand_harvest)
+  steady_states = c()
+  
+  for(variable in c('ss_monop', 'ss_cournot', 'ss_bertrand')){
+    ss = which(sign(eval(parse(text = paste0('result1$',variable)))) != lag(sign(eval(parse(text = paste0('result1$', variable))))))
+    
+    if(length(ss)==1){
+      steady_states = append(steady_states, c(result1[ss, 1], 
+                                              NA,
+                                              NA))
+    }else if(length(ss)==2){
+      steady_states = append(steady_states, c(result1[1, ss[1]], 
+                                              result1[1, ss[2]],
+                                              NA))
+    }else if(length(ss)==3){
+      steady_states = append(steady_states, c(result1[1, ss[1]], 
+                                              result1[1, ss[2]],
+                                              result1[2, ss[3]]))
+    }else if(length(ss)==0){
+      steady_states = append(steady_states, c(NA, NA, NA))
+    }
+    
+  }
+  
+  return(append(params,steady_states))
 }
 
-
-v_gamma_dat = rbind(v_gamma_dat,
-                    v_gamma_tojoin)
-#Loop to amend gamma
-v_gamma_tojoin = data.frame()
-for (i in c(0.7,.8, .9)){
-  v_gamma_join = data.frame(v_gamma_dat$gamma*i, 
-                            v_gamma_dat$v)
-  colnames(v_gamma_join) = colnames(v_gamma_dat)
-  v_gamma_tojoin = rbind(v_gamma_tojoin, 
-                         v_gamma_join)
-}
-v_gamma_dat = rbind(v_gamma_dat,
-                    v_gamma_tojoin)
-rm(v_gamma_join, v_gamma_tojoin)
-
-params_sensitivity = expand.grid(v_gamma_dat$gamma, 
-                                 v_gamma_dat$v, 
-                                 c_sens,
-                                 alpha_sens)
-colnames(params_sensitivity) = c('gamma', 'v', 'c', 'alpha')
 ```
+
 
 
 Now, use multiprocessing to perform analysis. I define chunks and then let the code run on the chunks of data. 
-```{r}
-chunks = seq(0,nrow(params_sensitivity),1000)
-```
 
 ```{r}
-numcores = 12
-cl = makeCluster(numcores)
+# Check how many cores we can use, set 4 aside to keep using computer
+numcores = detectCores() - 4
+# Set up storage
+store = data.frame()
 
-```
+# Set up the width of each run
+width = 6400*3
+number_op = nrow(params_sensitivity)/width
+
+# Loop over several runs is faster than 1 big run
+for (x in 1:number_op){
+  cl = makeCluster(numcores)
+  clusterEvalQ(cl,  library(tidyverse))
 
 
+  start = Sys.time()
+  a = parApply(cl, params_sensitivity[width*(x-1)+1:width*x,],1, run_model_par)
+  print(paste0('Code took ', str(Sys.time() - start)))
 
+  a = as.data.frame(a)
 
-```{r}
-
-global_storage = data.frame()
-
-start = Sys.time()
-
-
-for (i in 1:1000){
-  gamma = params_sensitivity[i, 1]
-  v = params_sensitivity[i, 2]
-  c = params_sensitivity[i, 3]
-  alpha = params_sensitivity[i, 4]
-  
-  global_storage = rbind(global_storage, run_model())
+  store = rbind(store, t(a))
 }
-print(paste0('Code took ', str(Sys.time() - start)))
 
-colnames(global_storage) = c('ss_monop_1', 
-                             'ss_monop_2',
-                             'ss_monop_3',
-                             'ss_cournot_1',
-                             'ss_cournot_2',
-                             'ss_cournot_3',
-                             'ss_bertrand_1',
-                             'ss_bertrand_2',
-                             'ss_bertrand_3')
-
-final = cbind(params_sensitivity, global_storage)
-rm(global_storage, params_sensitivity)
-write.csv(final, here('data', 'sensitivity_analysis.csv'))
 ```
+
 
 
 
