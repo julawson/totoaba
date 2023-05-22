@@ -334,7 +334,7 @@ if(run_==T){
   store = data.frame()
 
 # Set up the width of each run
-  width = 6400*3
+  width = nrow(params_sensitivity)
   number_op = nrow(params_sensitivity)/width
 
 # Loop over several runs is faster than 1 big run

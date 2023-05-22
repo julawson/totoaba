@@ -668,7 +668,7 @@ print(steady_states)
 
 actual_steady = steady_states[!is.na(steady_states)]
 
-plot = result1 %>%
+result1 %>%
   ggplot(aes(x=x))+
   geom_line(aes(y = growth, colour = 'Growth'), linewidth = 1)+
   geom_line(aes(y = qty_monop, colour = 'Monopoly'), linewidth = 1)+
@@ -676,13 +676,11 @@ plot = result1 %>%
   geom_line(aes(y = q_bertrand_harvest, colour = 'Bertrand'), linewidth = 1)+
   theme_bw()+
   ylab('Growth / harvest')+
-  scale_color_aaas()
+  scale_color_aaas()+
 # Do we know why adding geom_segments to the plot did not work in a loop? Most likely will be three ss though
-plot +
-  geom_segment(x = actual_steady[1], xend = actual_steady[1], y=0, yend=growth(actual_steady[1]))+
-  geom_segment(x = actual_steady[2], xend = actual_steady[2], y=0, yend=growth(actual_steady[2]))+
-  geom_segment(x = actual_steady[3], xend = actual_steady[3], y=0, yend=growth(actual_steady[3]))
-
+  geom_segment(x = actual_steady[1], xend = actual_steady[1], y=0, yend=growth(actual_steady[1]), linetype=2)+
+  geom_segment(x = actual_steady[2], xend = actual_steady[2], y=0, yend=growth(actual_steady[2]), linetype=2)+
+  geom_segment(x = actual_steady[3], xend = actual_steady[3], y=0, yend=growth(actual_steady[3]), linetype=2)
 ```
 
 Zoomed output (for both this code snippet and the one before, could be good to make a function to analyse the data from sensitivity analysis.) 
@@ -784,7 +782,7 @@ In order to manage that, I'll run all the potential values of $\gamma$ and $v$, 
 
 
 ```{r}
-dat_sensititivy = read.csv(here('data', 'sensitivity_analysis.csv'))
+dat_sensititivy = read.csv(here('data', 'sensitivity_steady_states.csv'))
 print('Distribution of monopoly steady states')
 summary(dat_sensititivy$ss_monop_1)
 
