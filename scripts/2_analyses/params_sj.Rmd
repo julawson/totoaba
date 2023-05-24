@@ -529,7 +529,7 @@ dat_aqua = dat_aqua %>%
 gamma_prim = dat_aqua %>% subset(Gamma>0.6 & Gamma < .7) %>% select(Gamma) %>% pull()
 age = dat_aqua %>% subset(Gamma>0.6 & Gamma < .7) %>% select(Totoaba_Age) %>% pull()
 gamma = gamma_prim*beta
-v = dat_aqua %>% subset(Gamma>0.6 & Gamma < .7) %>% select(actual_v) %>% pull()
+v = dat_aqua %>% subset(Gamma>0.9 & Gamma < 1.1) %>% select(actual_v) %>% pull()
 
 # Cost parameter for monopoly : 
 params = append(params, c('age','gamma_prim','gamma', 'v', 'c'))

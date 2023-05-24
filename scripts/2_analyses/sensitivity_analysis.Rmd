@@ -7,7 +7,9 @@ output: html_document
 
 # Sensitivity analysis
 
-```{r}
+```{r setup, include = F}
+knitr::opts_chunk$set(echo = F)
+
 library(tidyverse)
 library("ggsci")
 library(here)
@@ -28,80 +30,94 @@ calibration = read.csv(here('data', 'calibration_params.csv'))
 for(i in 1:nrow(calibration)){
   assign(calibration$params[i], calibration$value[i])
 }
-
-W = W_mid
 ```
 
 ## B. Define the parameters for sensitivity analysis
 
+For this version of the sensitivity analysis, I generate combinations based only on 1 variable being different. This may make more sense. The sensitivity analysis is ran for cost and demand data. Other variables can be included, and other values can be included. 
+
 ```{r}
-# Values for c
-c_sens = c(c, c*5, c*10, c*20)
+# Sensitivity analysis around v, gamma, alpha, W, c
 
-# Values for alpha
-alpha_sens = c(.8*alpha, .9*alpha, alpha)
+# I. Get a baseline dataframe with all the parameters we may want to test. ####
 
-r_sens = c(.8*r, r, 1.2*r)
-# Values for alpha
-dat_aqua = read.csv(here("data", "aqua_par_farm.csv"))
+# It is a dataframe because it includes a lot of possible values for v and gamma, 
+# which choice is endogeneous
+dat_aqua = read.csv(here("data", 
+                         "aqua_par_farm.csv"))
+
 dat_aqua = dat_aqua %>% mutate(v = 11293*Totoaba_Age)
-v_gamma_dat = dat_aqua %>% 
+baseline = dat_aqua %>% 
   mutate(cost_per_kilo_toto = Totoaba_Age*2,
          cost_per_ton_toto = cost_per_kilo_toto * 1000)%>%
-  subset(Gamma<1.5) %>%
+  subset(Gamma<=1.1 & Gamma>0.9) %>%
   select(Gamma,
          v)%>%
-  rename(gamma = Gamma)
+  rename(gamma = Gamma)%>%
+  mutate(beta = beta, 
+         alpha = alpha, 
+         gamma = .99*beta, 
+         W = W_mid, 
+         c = c,
+         r = r, 
+         k = k,
+         sigma = sigma,
+         spec = 'baseline', 
+         transformation = NA)
 
-# Loop to change the values of v
-v_gamma_tojoin = data.frame()
+params_sensitivity = baseline
 
-for (i in c(.01,.5,.9)){
-  v_gamma_join = data.frame(v_gamma_dat$gamma, 
-                            v_gamma_dat$v*i)
-  colnames(v_gamma_join) = colnames(v_gamma_dat)
-  v_gamma_tojoin = rbind(v_gamma_tojoin, 
-                         v_gamma_join)
+# II. Define all the parameter values we want to test: ####
+# Important : define those values as COEFFICIENTS to be applied to the variables
+# Little sloppy, but the idea is to make sure all vectors are the same length
+# for storage in dataframe
+v_sens = c(.01, 0.05, .1, .5, .6, .7, .8, 1.2)
+gamma_sens = c(0.0001, .01, .1/.99, .2/.99, .5/.99, .8/.99, .9/.99, NA)
+c_sens = c(5,  10, 20,30, 40, 45, 50, NA)
+alpha_sens = c(.5, .6, .8, 1.2, 1.5, 1.6, NA, NA)
+W_sens = c(W_low/W_mid,W_high/W_mid, 2, 4, 6, NA, NA, NA)
+beta_sens = c(.5, .8, 1.2, 1.5, NA, NA, NA, NA)
+# Store into data.frame
+sensitivity_values = data.frame()%>%
+  rbind(v_sens, gamma_sens, c_sens, alpha_sens, W_sens, beta_sens)
+sensitivity_values = cbind(data.frame(c('v', 'gamma', 'c', 'alpha', 'W', 'beta')),
+                           sensitivity_values)
+
+colnames(sensitivity_values) = append(c('var'), c(paste0('val',1:length(W_sens))))
+
+# III. Loop to get the data we want ####
+# Here, loop over names.
+for(name in sensitivity_values$var){
+  dat = baseline
+  to_mult = sensitivity_values %>% subset(var==name) %>% select(-var)%>% unlist()
+  # Take all the values that are non NA we want to transform baseline data with
+  to_mult = to_mult[!is.na(to_mult)]
+
+  # Loop over each value : store data with (i) what variable is modified and
+  # (ii) the values we apply to them
+  for (val in to_mult){
+    dat = baseline
+  
+    idea= as.name(name)
+    dat[[idea]] = dat%>%
+      select(all_of(idea))%>%
+      unlist()*val
+    dat$spec = paste(name)
+    dat$transformation = val
+    params_sensitivity = rbind(params_sensitivity, dat)
+  }
 }
+a = expand_grid(c_sens, v_sens)
+colnames(a) = c('c', 'v')
+a = cbind(baseline %>% select(-c('c', 'v', 'spec', 'transformation'))%>% slice(rep(1:n(), each = nrow(a))), a)
+a = a %>% mutate(spec = 'c and v', 
+                 transformation = paste(c,' and ', v))
 
-# Store
-v_gamma_dat = rbind(v_gamma_dat,
-                    v_gamma_tojoin)
-
-#Loop to amend gamma
-v_gamma_tojoin = data.frame()
-for (i in c(.8,1.2)){
-  v_gamma_join = data.frame(v_gamma_dat$gamma*i, 
-                            v_gamma_dat$v)
-  colnames(v_gamma_join) = colnames(v_gamma_dat)
-  v_gamma_tojoin = rbind(v_gamma_tojoin, 
-                         v_gamma_join)
-}
-# Store and clean
-v_gamma_dat = rbind(v_gamma_dat,
-                    v_gamma_tojoin)
-rm(v_gamma_join, v_gamma_tojoin)
-
-# Get a grid of all possible combinations we may want to try
-params_sensitivity = expand.grid(v_gamma_dat$gamma, 
-                                 v_gamma_dat$v, 
-                                 c_sens,
-                                 alpha_sens,
-                                 r_sens)
-colnames(params_sensitivity) = c('gamma_primitive', 'v', 'c', 'alpha', 'r')
-
-# Fix gamma
-params_sensitivity= params_sensitivity %>%
-  mutate(gamma = gamma_primitive * beta)
-
-# Include other parameters to load for parallel computing
-other_params = data.frame(k, sigma, W, beta)%>%
-   slice(rep(1:n(), each = nrow(params_sensitivity)))
-
-# Finally, get all the parameter combinations we want to do the model on
-params_sensitivity = cbind(other_params, params_sensitivity)
+params_sensitivity = rbind(params_sensitivity, a)
+rm(a)
 print(paste0('There are ', nrow(params_sensitivity)," combinations to test" ))
 ```
+
 
 ## C. Define function to run model
 
@@ -141,18 +157,7 @@ run_model = function(){
     y = ((sigma^2)*(x^2)*(2*beta_f*(alpha_w - c) - gamma*(alpha_f - v)))/(4*beta_f*W +     (sigma^2)*(x^2)*(4*beta_f*beta_w - (gamma^2)))
     return(y)
   }
-  
-  s_c_own = function(x){
-    y = (2*W*(2*beta_f*(alpha_w - c) - gamma*(alpha_f - v)))/((sigma^2)*(x^2)*(4*beta_f*beta_w - gamma^2) + 4*beta_f*W)
-    return(y)
-  }
-  q_farmed_cournot = function(s){
-    y = (2 * beta_w * (alpha_f - v) - gamma* (alpha_w - (s + c)) )/(4*beta_w*beta_f - gamma^2)
-    return(y)
-  }
-  
-  result1 = result1 %>% mutate(q_cournot_harvest = q_cournot_wild_own(x),
-                               q_cournot_farmed = q_farmed_cournot(s_c_own(x)))
+  result1 = result1 %>% mutate(q_cournot_harvest = q_cournot_wild_own(x))
   
   # Run Betrand : 
   e   = gamma/(beta_w*beta_f - (gamma^2))
@@ -161,23 +166,14 @@ run_model = function(){
   b_f = beta_f/(beta_w*beta_f - (gamma^2))
   b_w = beta_w/(beta_w*beta_f - (gamma^2))
   
-  s_b_own = function(x){
-    y = (2*W*b_w*( b_f*(2*a_w + e*v) + c*((e^2) - 2*b_f*b_w) + e*a_f))/((sigma^2)*(x^2)*(4*b_f*b_w - (e^2)) + 2*W*b_w*(2*b_w*b_f - (e^2)))
-    return(y)
-  }
-  
   q_b_own = function(x){
     y = ((sigma^2)*(x^2)*b_w*(b_f*(2*a_w+e*v) + c*((e^2)- 2*b_f*b_w) + e*a_f))/((sigma^2)*(x^2)*(4*b_w*b_f - (e^2)) + 2*W*b_w*(2*b_f*b_w - (e^2)))
     return(y)
   }
   
-  quantity_farmed = function(s){
-    y = b_f *(2*b_w*a_f + v*(e^2 - 2*b_w*b_f) + e*(a_w + (s+c)*b_w))/(4*b_f*b_w - e^2)
-    return(y)
-  }
+
   
-  result1 = result1 %>% mutate(q_bertrand_harvest = q_b_own(x),
-                               q_bertrand_farmed = quantity_farmed(s_b_own(x)))
+  result1 = result1 %>% mutate(q_bertrand_harvest = q_b_own(x))
   
   # Find steady states : 
   
@@ -185,28 +181,47 @@ run_model = function(){
                                ss_cournot = growth - q_cournot_harvest,
                                ss_bertrand = growth - q_bertrand_harvest)
   steady_states = c()
-  
+  harvests = c()
   for(variable in c('ss_monop', 'ss_cournot', 'ss_bertrand')){
+    # Comment that
     ss = which(sign(eval(parse(text = paste0('result1$',variable)))) != lag(sign(eval(parse(text = paste0('result1$', variable))))))
-    
-    
     
     if(length(ss)==1){
       steady_states = append(steady_states, c(result1[ss, 1], 
                                               NA,
                                               NA))
-    }else if(length(ss)==2){
-      steady_states = append(steady_states, c(result1[1, ss[1]], 
-                                              result1[1, ss[2]],
+      harvests = append(harvests, c(growth(ss[1]), 
+                                    NA, 
+                                    NA))
+    }
+    else if(length(ss)==2){
+      steady_states = append(steady_states, c(result1[ss[1], 1], 
+                                              result1[ss[2], 1],
                                               NA))
-    }else if(length(ss)==3){
-      steady_states = append(steady_states, c(result1[1, ss[1]], 
-                                              result1[1, ss[2]],
-                                              result1[2, ss[3]]))
+      harvests = append(harvests, c(growth(ss[1]), 
+                                    growth(ss[2]), 
+                                    NA))
+    }
+    else if(length(ss)==3){
+      steady_states = append(steady_states, c(result1[ss[1],1], 
+                                              result1[ss[2],1],
+                                              result1[ss[3],1]))
+      harvests = append(harvests, c(growth(ss[1]), 
+                                    growth(ss[2]), 
+                                    growth(ss[3])))
+    }
+    else if(length(ss)==0){
+      steady_states = append(steady_states, c(NA, NA, NA))
+      harvests = append(harvests, c(NA, NA, NA))
     }
     
   }
-  return(steady_states)
+  # Results : 
+  results = append(append(params,
+                   steady_states),
+                   harvests)
+  
+  return(results)
 }
 
 #Define parallelized version
@@ -288,104 +303,298 @@ run_model_par = function(params){
                                q_bertrand_farmed = quantity_farmed(s_b_own(x)))
   
   # Find steady states : 
-  
   result1 = result1 %>% mutate(ss_monop = growth - qty_monop,
                                ss_cournot = growth - q_cournot_harvest,
                                ss_bertrand = growth - q_bertrand_harvest)
   steady_states = c()
-  
+  harvests = c()
   for(variable in c('ss_monop', 'ss_cournot', 'ss_bertrand')){
+    # Comment that
     ss = which(sign(eval(parse(text = paste0('result1$',variable)))) != lag(sign(eval(parse(text = paste0('result1$', variable))))))
     
     if(length(ss)==1){
       steady_states = append(steady_states, c(result1[ss, 1], 
                                               NA,
                                               NA))
+      harvests = append(harvests, c(growth(ss[1]), 
+                                    NA, 
+                                    NA))
     }else if(length(ss)==2){
       steady_states = append(steady_states, c(result1[ss[1], 1], 
                                               result1[ss[2], 1],
                                               NA))
+      harvests = append(harvests, c(growth(ss[1]), 
+                                    growth(ss[2]), 
+                                    NA))
     }else if(length(ss)==3){
       steady_states = append(steady_states, c(result1[ss[1],1], 
                                               result1[ss[2],1],
                                               result1[ss[3],1]))
+      harvests = append(harvests, c(growth(ss[1]), 
+                                    growth(ss[2]), 
+                                    growth(ss[3])))
     }else if(length(ss)==0){
       steady_states = append(steady_states, c(NA, NA, NA))
+      harvests = append(harvests, c(NA, NA, NA))
     }
     
   }
   
-  return(append(params,steady_states))
+  # Find harvests : 
+
+  # Compute prices : 
+  
+  # Compute profits :
+  
+  
+  return(append(params,steady_states, harvests))
 }
 
+# Defiene unparallelized version
 ```
 
 
-## D. Multiprocessing run
+## D. Run
 
-Now, use multiprocessing to perform analysis. I define chunks and then let the code run on the chunks of data. To run the model, define `r run_ = T`, otherwise leave it as is, and load the data. 
+Two ways : 
+
+* If `params_sensitivity` is not too large (less than 10,000 rows), can run it on the computer, it's easy
+
+* If too long, use multiprocessing to perform analysis. I define chunks and then let the code run on the chunks of data. To run the model, define `r run_ = T`, otherwise leave it as is, and load the data. `
+
+To deal with data, there are two layers : 
+
+* Column `spec` displays which variable has been tweaked. For example, if one wants to analyze data for changed values of `v`, run `store %>% subset(spec == 'v')`, or when $c$ and $v$ move at the same time, `store %>% subset(spec == 'c and v')`.
+
+* Second, column `transformation` can be used to color the graphs. If you want to check what how different values of `v` may impact the results, you can subset based on `transformation`. To find where each was applied, check section B's code
 
 ```{r}
 run_ = T
-# Check how many cores we can use, set 4 aside to keep using computer
+
+if(exists(here('data','sensitivity_steady_states.csv'))){
+  run = F
+}
+
 if(run_==T){
-  numcores = detectCores() - 4
+  # No need for parallel computing with small dataset
+  if(nrow(params_sensitivity)<10000){
+    
+    to_assign = colnames(params_sensitivity)
+    to_assign = to_assign[1:9]
+    store = data.frame()
+    
+    # Loop over all rows
+    for(row in 1:nrow(params_sensitivity)){
+      
+      # First, assign environment variable
+      for(variable in to_assign){
+        assign(variable, 
+               params_sensitivity[row,] %>% 
+                 select(all_of(variable)) %>% 
+                 pull())
+      }
+      # Then store data : 
+      params = params_sensitivity[row,]%>%
+        unlist()
+      
+      store = rbind(store, 
+                    run_model())
+    }
+    # Get names
+    colnames(store) = append(colnames(params_sensitivity), 
+                             c('ss_monop1', "ss_monop2", "ss_monop3", 'ss_cournot1',
+                               'ss_cournot2', 'ss_cournot3', 'ss_bertrand1', "ss_bertrand2", 
+                               'ss_bertrand3', 'harvest_monop1', 'harvest_monop2',
+                               'harvest_monop3', 'harvest_cournot1','harvest_cournot2',
+                               'harvest_cournot3', 'harvest_bertrand1', 'harvest_bertrand2',
+                               'harvest_bertrand3'))
+    store['spec'] = as.factor(store$spec)
+    store['transformation'] = as.factor(store$transformation)
+    store = store %>% mutate_if(is.character, as.numeric)
+    # Now that all the steady states stock and harvest rates are computed, do a big mutate for other output variables
+    # i. Define output functions : 
+    ### Monopoly
+    price_monop          = function(h, alpha, beta){
+      y = alpha - beta*h
+      return(y)
+    }
+    price_poachers_monop = function(x, alpha, beta, sigma, c, W){
+      y = (alpha - c)*W/(beta*sigma^2*x^2 + W)
+      return(y)
+    }
+    profit_monop         = function(h,x,alpha, beta, sigma, c, W){
+      y = price_monop(h, alpha, beta)*h - (c + price_poachers_monop(x, alpha, beta, sigma, c, W))*h
+      return(y)
+    }
+    # test
+    store = store %>% mutate(price_monop1          = price_monop(harvest_monop1, alpha, beta),
+                             price_monop2          = price_monop(harvest_monop2, alpha, beta),
+                             price_monop3          = price_monop(harvest_monop3, alpha, beta),
+                             price_poachers_monop1 = price_poachers_monop(ss_monop1, alpha, beta, sigma, c, W),
+                             price_poachers_monop2 = price_poachers_monop(ss_monop2, alpha, beta, sigma, c, W),
+                             price_poachers_monop3 = price_poachers_monop(ss_monop3, alpha, beta, sigma, c, W),
+                             profit_monop1         = profit_monop(harvest_monop1,ss_monop1,alpha, beta, sigma, c, W),
+                             profit_monop2         = profit_monop(harvest_monop2,ss_monop2,alpha, beta, sigma, c, W),
+                             profit_monop3         = profit_monop(harvest_monop3,ss_monop3,alpha, beta, sigma, c, W))
+    ### Cournot 
+    s_c_own          = function(x, alpha, beta, gamma, sigma, c, W ){
+      y = (2*W*(2*beta*(alpha - c) - gamma*(alpha - v)))/((sigma^2)*(x^2)*(4*beta*beta - gamma^2) + 4*beta*W)
+      return(y)
+    }
+    q_farmed_cournot = function(s, alpha, beta, gamma, c, v){
+      y = (2 * beta * (alpha - v) - gamma* (alpha - (s + c)) )/(4*beta*beta - gamma^2)
+      return(y)
+    }
+    profit_farm      = function(hf, hw, alpha, beta, gamma, v){
+      y = (alpha - beta*hf - gamma*hw - v)*hf
+      return(y)
+    }
+    profit_trader    = function(hf, hw, x, alpha, beta, gamma, c, W){
+      y = (alpha - beta*hw - gamma*hf - s_c_own(x, alpha, beta, gamma, sigma, c, W) - c)*hw
+      return(y)
+    }
+    price_farmed     = function(alpha, beta, gamma, hw, hf){
+      y = alpha - beta*hf - gamma*hf
+      return(y)
+    }
+    price_wild       = function(alpha, beta, gamma, hw, hf){
+      y = alpha - beta*hw - gamma*hf
+      return(y)
+    }
+    
+    store = store %>% mutate(price_poachers_cournot1 = s_c_own(ss_cournot1, alpha, beta, gamma, sigma, c, W),
+                             farmed_cournot1         = q_farmed_cournot(price_poachers_cournot1,alpha, beta, gamma, c, v),
+                             p_farmed_cournot1       = price_farmed(alpha, beta, gamma, harvest_cournot1, farmed_cournot1),
+                             p_wild_cournot1         = price_wild(alpha, beta, gamma, harvest_cournot1, farmed_cournot1),
+                             profit_farmed_cournot1  = profit_farm(farmed_cournot1, harvest_cournot1, alpha, beta, gamma, v),
+                             profit_trader_cournot1  = profit_trader(farmed_cournot1, harvest_cournot1, ss_cournot1, alpha, beta, gamma, c,W),
+                            # Second steady state                        
+                             price_poachers_cournot2 = s_c_own(ss_cournot2, alpha, beta, gamma, sigma, c, W),
+                             farmed_cournot2         = q_farmed_cournot(price_poachers_cournot2,alpha, beta, gamma, c, v),
+                             p_farmed_cournot2       = price_farmed(alpha, beta, gamma, harvest_cournot2, farmed_cournot2),
+                             p_wild_cournot2         = price_wild(alpha, beta, gamma, harvest_cournot2, farmed_cournot2),
+                             profit_farmed_cournot2  = profit_farm(farmed_cournot2, harvest_cournot2, alpha, beta, gamma, v),
+                             profit_trader_cournot2  = profit_trader(farmed_cournot2, harvest_cournot2, ss_cournot2, alpha, beta, gamma, c,W),
+                            # Third steady state                        
+                             price_poachers_cournot3 = s_c_own(ss_cournot3, alpha, beta, gamma, sigma, c, W),
+                             farmed_cournot3         = q_farmed_cournot(price_poachers_cournot3,alpha, beta, gamma, c, v),
+                             p_farmed_cournot3       = price_farmed(alpha, beta, gamma, harvest_cournot3, farmed_cournot3),
+                             p_wild_cournot3         = price_wild(alpha, beta, gamma, harvest_cournot3, farmed_cournot3),
+                             profit_farmed_cournot3  = profit_farm(farmed_cournot3, harvest_cournot3, alpha, beta, gamma, v),
+                             profit_trader_cournot3  = profit_trader(farmed_cournot3, harvest_cournot3, ss_cournot3, alpha, beta, gamma, c,W))
+    # Bertrand
+    store = store %>% mutate(e   = gamma/(beta*beta - (gamma^2)),
+                             a_f = (alpha*beta - alpha*gamma)/(beta*beta - (gamma^2)),
+                             a_w = (alpha*beta - alpha*gamma)/(beta*beta - (gamma^2)),
+                             b_f = beta/(beta*beta - (gamma^2)),
+                             b_w = beta/(beta*beta - (gamma^2)))
+  
+  s_b_own          = function(x, a_f, a_w, b_f, b_w, e, W, c){
+    y = (2*W*b_w*( b_f*(2*a_w + e*v) + c*((e^2) - 2*b_f*b_w) + e*a_f))/((sigma^2)*(x^2)*(4*b_f*b_w - (e^2)) + 2*W*b_w*(2*b_w*b_f - (e^2)))
+    return(y)
+  }
+  quantity_farmed  = function(s, a_f, a_w, b_f, b_w, e, W, c){
+    y = b_f *(2*b_w*a_f + v*(e^2 - 2*b_w*b_f) + e*(a_w + (s+c)*b_w))/(4*b_f*b_w - e^2)
+    return(y)
+  }
+  price_farmed     = function(s, a_f, a_w, b_f, b_w, e, c){
+    y = (2*b_w*(a_f + v*b_f) + e*(a_w + b_w*(s+c)))/(4*b_f*b_w - e^2)
+    return(y)
+  }
+  price_trader     = function(s, a_f, a_w, b_f, b_w, e, c){
+    y = (2*b_f *(a_w+b_w*(s+c))+e*(a_f +v*b_f))/(4*b_f*b_w - e^2)
+    return(y)
+  }
+  profit_farm      = function(pw, pf, a_f, b_f, e, v){
+    y = (pf - v)*(a_f - b_f*pf + e*pw)
+    return(y)
+  }
+  profit_trader    = function(pw, pf, a_w, b_w, e, s, c){
+    y = (pw - s - c)*(a_w - b_w*pw + e*pf)
+    return(y)
+  }
+    
+  store = store %>% mutate(price_poachers_bertrand1 = s_b_own(ss_bertrand1, a_f, a_w, b_f, b_w, e, W, c),
+                           farmed_bertrand1         = quantity_farmed(price_poachers_bertrand1, a_f, a_w, b_f, b_w, e, W, c),
+                           p_farmed_bertrand1       = price_farmed(price_poachers_bertrand1, a_f, a_w, b_f, b_w, e, c),
+                           p_wild_bertrand1         = price_trader(price_poachers_bertrand1, a_f, a_w, b_f, b_w, e, c),
+                           profit_farmed_bertrand1  = profit_farm(p_wild_bertrand1, p_farmed_bertrand1, a_f, b_f, e, v),
+                           profit_trader_bertrand1  = profit_trader(p_wild_bertrand1, p_farmed_bertrand1, a_w, b_w, e, price_poachers_bertrand1, c),
+                           # Second steady state:
+                           price_poachers_bertrand2 = s_b_own(ss_bertrand2, a_f, a_w, b_f, b_w, e, W, c),
+                           farmed_bertrand2         = quantity_farmed(price_poachers_bertrand2, a_f, a_w, b_f, b_w, e, W, c),
+                           p_farmed_bertrand2       = price_farmed(price_poachers_bertrand2, a_f, a_w, b_f, b_w, e, c),
+                           p_wild_bertrand2         = price_trader(price_poachers_bertrand2, a_f, a_w, b_f, b_w, e, c),
+                           profit_farmed_bertrand2  = profit_farm(p_wild_bertrand2, p_farmed_bertrand2, a_f, b_f, e, v),
+                           profit_trader_bertrand2  = profit_trader(p_wild_bertrand2, p_farmed_bertrand2, a_w, b_w, e, price_poachers_bertrand2, c),
+                           #Third steady state : 
+                           price_poachers_bertrand3 = s_b_own(ss_bertrand3, a_f, a_w, b_f, b_w, e, W, c),
+                           farmed_bertrand3         = quantity_farmed(price_poachers_bertrand3, a_f, a_w, b_f, b_w, e, W, c),
+                           p_farmed_bertrand3       = price_farmed(price_poachers_bertrand3, a_f, a_w, b_f, b_w, e, c),
+                           p_wild_bertrand3         = price_trader(price_poachers_bertrand3, a_f, a_w, b_f, b_w, e, c),
+                           profit_farmed_bertrand3  = profit_farm(p_wild_bertrand3, p_farmed_bertrand3, a_f, b_f, e, v),
+                           profit_trader_bertrand3  = profit_trader(p_wild_bertrand3, p_farmed_bertrand3, a_w, b_w, e, price_poachers_bertrand3, c))
+  
+    store['transformation'] = as.character(store$transformation)
+  
+    write.csv(store, here('data', 'sensitivity_steady_states.csv'), row.names = F)
+
+    }
+  else{
+    numcores = detectCores() - 4
 # Set up storage
-  store = data.frame()
+    store = data.frame()
 
 # Set up the width of each run
-  width = nrow(params_sensitivity)
-  number_op = nrow(params_sensitivity)/width
+    width = nrow(params_sensitivity)
+    number_op = nrow(params_sensitivity)/width
 
 # Loop over several runs is faster than 1 big run
-  for (x in 1:number_op){
+    for (x in 1:number_op){
     # Make clusters
-    cl = makeCluster(numcores)
+      cl = makeCluster(numcores)
     # Load tidyverse : otherwise, pipe operator is not recognized
-    clusterEvalQ(cl,  library(tidyverse))
+      clusterEvalQ(cl,  library(tidyverse))
 
     # Start timer
-    start = Sys.time()
+      start = Sys.time()
     # Apply function accross nodes with a slice of the data of lenght width
-    a = parApply(cl, 
-                 params_sensitivity[width*(x-1)+1:width*x,],
-                 1,
-                 run_model_par)
-    print(Sys.time() - start)
+      a = parApply(cl, 
+                   params_sensitivity[width*(x-1)+1:width*x,],
+                   1,
+                   run_model_par)
+      print(Sys.time() - start)
 
-    a = as.data.frame(a)
+      a = as.data.frame(a)
 
-    store = rbind(store, t(a))
-  }
-  write.csv(store, here('data', 'sensitivity_steady_states.csv'))
+      store = rbind(store, t(a))
+    }
+    colnames(store) = c('k', 'sigma', 'W', 'beta', 
+                        'gamma_primitive', 'v', 'c', 
+                        'alpha', 'r', 'gamma','ss_monop1', 'ss_monop2', 'ss_monop3',
+                        'ss_cournot1', 'ss_cournot2', 'ss_cournot3', 'ss_bertrand1', 
+                        'ss_bertrand2', 'ss_bertrand3')
+  
+    write.csv(store, here('data', 'sensitivity_steady_states.csv'), row.names = F)
+}
 }else{
-  sensitivity = read.csv(here('data','sensitivity_steady_state.csv'))
+  store = read.csv(here('data','sensitivity_steady_states.csv'))
 }
 
 ```
 
-## E. Evaluate steady state outcomes
+For example : 
 
 ```{r}
-# Need to load all the parameters
+to_long = colnames(store)
+to_long = to_long[12:length(to_long)]
 
-# EXISTING : 
-  # Get quantities for harvest with growth(x)
-  # Load function for farming, apply them to x
-  # Price paid to poachers
-
-# TO MAKE : 
-  # Price
-  # Profit
-
-# OUTPUT : tidy data to leverage ggplot, we're gonna have a lot of stuff to plot.
-  # Data table
-  # Column 1 : number
-  # Column 2 : label for quantity
-  # Columns 3... : parameters
-
+a = store %>% 
+  pivot_longer(cols = to_long, 
+               names_to = 'output',
+               values_to = 'value')
+head(a)
 ```
 
-
-
+I have an issue with the best way to plot data. I think using a long format is better to use the functionalities from `ggplot2`. I think there's still one more round of analysis to do : for each different value of `spec` and `transformation`, we need to find the value that maximizes the profit of the aquaculture firm. Then, I think it should be ok to use a long format to plot the data. 
 
