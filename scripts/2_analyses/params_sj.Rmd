@@ -156,7 +156,7 @@ dat_b %>%
   geom_line(aes(y = c, color = 'Catch (metric tons)'), linewidth = 1.1)+
   geom_line(aes(y = b/scale, color = 'Biomass (metric tons)'), linewidth = 1.1)+
   scale_y_continuous(sec.axis = sec_axis(~.*scale, name='Biomass (metric tons)'))+
-  geom_vline(xintercept = 1974, color = 'grey', linewidth = 1, linetype ='dashed')+
+  geom_vline(xintercept = 1976, color = 'grey', linewidth = 1, linetype ='dashed')+
   geom_vline(xintercept = 2010, color = 'grey', linewidth = 1, linetype ='dashed')+
   scale_color_aaas()+
   theme_bw()+
@@ -366,11 +366,10 @@ catchability = pull(catchability)
 
 ```{r}
 
-
 # Define coefficients for average costs in different estimation scenarios
-avg_cost = 8215.34
-min_cost = 3992.27
-max_cost = 13327.92
+avg_cost = 8215.34 # This is average cost per trip
+min_cost = 3992.27 # This is the minimum cost per trip (low season)
+max_cost = 13327.92 # This is the maximum cost per trip (high season)
 
 # Define the number of trips as a continuous variable that ranges from 0 to realized trips majored by 50%
 values_W = data.frame()

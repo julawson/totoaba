@@ -20,6 +20,41 @@ library(parallel)
 rm(list = ls())
 ```
 
+```{r load sens analysis file}
+
+sens <- read.csv(here('data', 'sensitivity_steady_states.csv'))
+
+sens_plot <- sens %>% 
+  group_by(gamma_primitive) %>% 
+  summarize(mean_X = mean(X, na.rm=T),
+            mean_X1 = mean(X.1, na.rm=T),
+            mean_X2 = mean(X.2, na.rm=T),
+            mean_X3 = mean(X.3, na.rm=T),
+            mean_X4 = mean(X.4, na.rm=T),
+            mean_X5 = mean(X.5, na.rm=T),
+            mean_X6 = mean(X.6, na.rm=T),
+            mean_X7 = mean(X.7, na.rm=T),
+            mean_X8 = mean(X.8, na.rm=T))
+
+ggplot(sens_plot, aes(x=gamma_primitive)) +
+  geom_line(aes(y=mean_X), linetype = "dashed")+
+  geom_line(aes(y = mean_X1))+
+  geom_line(aes(y = mean_X2))+
+  geom_line(aes(y = mean_X3))+
+  geom_line(aes(y = mean_X4))+
+  geom_line(aes(y = mean_X5))+
+  geom_line(aes(y = mean_X6))+
+  geom_line(aes(y = mean_X7))+
+  geom_line(aes(y = mean_X8))+
+  geom_line(aes(y = quad_cost_exact, colour = 'Linear = quadratic at historical equilibrium'))+
+  geom_line(aes(y = quad_cost_MC, colour = 'MC equal at historical equilibrium'))+
+  #geom_vline(xintercept = 1920)+
+  theme_bw()+
+  scale_color_aaas()
+print(Ws)
+
+```
+
 
 ## A. Load parameters for baseline
 
@@ -349,8 +384,6 @@ run_model_par = function(params){
   
   return(append(params,steady_states, harvests))
 }
-
-# Defiene unparallelized version
 ```
 
 
@@ -537,7 +570,7 @@ if(run_==T){
   
     store['transformation'] = as.character(store$transformation)
   
-    write.csv(store, here('data', 'sensitivity_steady_states.csv'), row.names = F)
+    write.csv(store, here('data', 'sensitivity_steady_states_last.csv'), row.names = F)
 
     }
   else{
@@ -575,10 +608,10 @@ if(run_==T){
                         'ss_cournot1', 'ss_cournot2', 'ss_cournot3', 'ss_bertrand1', 
                         'ss_bertrand2', 'ss_bertrand3')
   
-    write.csv(store, here('data', 'sensitivity_steady_states.csv'), row.names = F)
+    write.csv(store, here('data', 'sensitivity_steady_states_last.csv'), row.names = F)
 }
 }else{
-  store = read.csv(here('data','sensitivity_steady_states.csv'))
+  store = read.csv(here('data','sensitivity_steady_states_last.csv'))
 }
 
 ```
