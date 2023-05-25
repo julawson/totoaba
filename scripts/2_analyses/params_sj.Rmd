@@ -335,18 +335,22 @@ With this model, typically, observed catch in 2017 yields a price of `r price_ob
 
 Julia has set up the growth and catchability parameters
 ```{r}
+dat_w = read.csv(here("data", "w_par.csv"))
+max_E = sum(dat_w$total_fleet_days_year)
 
 r = 0.2012827
 k = 20226 # in metric tons of biomass from INAPESCA
 k_ = k*1000 # in kilos
 
-catchability = 0.0005526788*25.7/1000# in vessel trips ^-1
+catchability = dat_b %>% 
+  subset(y==2016) %>% 
+  select(c)/(max_E *dat_b %>% subset(y==2016) %>% select(b))
+catchability = pull(catchability)
 
 params = append(params, c('r', 'k','sigma'))
 value = append(value, c(r, k, catchability))
 concept = append(concept, c('intrinsic growth rate', 'carrying capacity', 'catchability'))
 units = append(units, c('unitless', 'metric tons of biomass', '% of biomass/vessel trips'))
-
 ```
 
 # III. Estimating costs parameters
@@ -355,14 +359,6 @@ units = append(units, c('unitless', 'metric tons of biomass', '% of biomass/vess
 
 From Julia's calculation, we have average cost. Now the procedure is to find the $W$ parameter that minimizes the difference between a straight cost and a quadratic cost. 
 
-```{r}
-dat_w = read.csv(here("data", "w_par.csv"))
-max_E = sum(dat_w$total_fleet_days_year)
-catchability = dat_b %>% 
-  subset(y==2016) %>% 
-  select(c)/(max_E *dat_b %>% subset(y==2016) %>% select(b))
-catchability = pull(catchability)
-```
 
 ```{r}
 
@@ -525,11 +521,15 @@ dat_aqua = dat_aqua %>%
          cost_per_kilo_buche = cost_per_kilo_toto/conv,
          actual_v = 11293*Totoaba_Age)
 
-gamma_prim = dat_aqua %>% subset(Gamma>0.6 & Gamma < .7) %>% select(Gamma) %>% pull()
-age = dat_aqua %>% subset(Gamma>0.6 & Gamma < .7) %>% select(Totoaba_Age) %>% pull()
+gamma_prim = dat_aqua %>% subset(Gamma>0.8 & Gamma < 1) %>% select(Gamma) %>% pull()
 gamma = gamma_prim*beta
-v = dat_aqua %>% subset(Gamma>0.9 & Gamma < 1.1) %>% select(actual_v) %>% pull()
 
+# Determine cost for comparable fish
+age = dat_aqua %>% subset(Gamma>0.8 & Gamma < 1) %>% select(Totoaba_Age) %>% pull()
+v = dat_aqua %>% subset(Gamma>0.8 & Gamma < 1) %>% select(actual_v) %>% pull()
+
+# Set gamma to be almost perfectly substitutable
+gamma = 0.9*beta
 # Cost parameter for monopoly : 
 params = append(params, c('age','gamma_prim','gamma', 'v', 'c'))
 value = append(value, c(age,gamma_prim, gamma, v, c))
@@ -541,7 +541,7 @@ units = append(units, c('years', 'unitless', 'unitless', 'USD/ton of biomass', '
 ### B. Check calibration
 ```{r}
 qty_monop = function(x){
- y = (alpha - c)*sigma^2 * x^2 / (2*beta* sigma^2 * x^2 + 2*W)
+ y = ((alpha - c)*sigma^2 * x^2) / (2*beta* sigma^2 * x^2 + 2*W)
  return(y)
 }
 
@@ -710,10 +710,8 @@ Outputs of the model are:
 ```{r}
 # Analyse market prices : 
 
-bertrand_ss = steady_states[6:9]
-
 # In case of monopoly : 
-dat_monop = result1 %>% subset(x %in% steady_states[4:6]) %>%
+dat_monop = result1 %>% subset(x %in% steady_states[1:3]) %>%
   select(qty_monop)%>%
   mutate(p = alpha - beta*qty_monop)
 kable(dat_monop)
@@ -810,7 +808,10 @@ Plan is therefore :
   + Finalize calibration, especially data sources
   + Write discussion
   
-# Simple figure for paper:
+# Simple figures for paper:
+
+Illustrate equilibria
+
 
 ```{r}
 qty_monop = function(x){
@@ -842,6 +843,70 @@ data.frame(x = seq(1,100))%>%
   annotate('text', x = 65, y = 2.45, label= 'stable')+
   theme(legend.position = "none")
 
+```
+
+Illustration for the proof of Lemma 2, intuition : 
+
+```{r}
+a_m = alpha/beta
+b_m = 1/beta
+
+v_func = function(x,c){
+  coeff = (a_m - b_m*c)/(b_w*b_f*e)
+  parenthesis = (2*W*b_w*(2*b_w*b_f - e^2) + (4*b_w*b_f - e^2)*sigma^2*x^2)/(2*W*b_m + 2*sigma^2*x^2)
+  const = (e*a_f + c*(e^2 - 2*b_w*b_f) + 2*b_f*a_w)/(b_f*e)
+  return(coeff* parenthesis - const)
+}
+
+tester = data.frame(x = seq(1,k))%>%
+  mutate(v_func = v_func(x,c),
+         v_func2 = v_func(x, 5*c),
+         v = v, 
+         v_ = .7*v,
+         v_max = 1.*v)
+tester %>%
+  subset( x > 10000)%>%
+  ggplot(aes(x=x))+
+  geom_line(aes(y = v_func, colour = 'F(x, c=2658)'), linewidth = 1.1)+
+  geom_line(aes(y = v_func2, colour = 'F(x, c=13290)'), linetype = 'dashed')+
+  geom_line(aes(y = v, colour = 'v' ), linewidth = 1.1)+
+  geom_line(aes(y = v_), linetype = 'dashed')+
+  geom_line(aes(y = v_max), linetype = 'dashed')+
+  theme_bw()+
+  scale_color_manual(values = c('red', 'red', 'black'))
+
+tester %>%
+  ggplot(aes(x=x))+
+  geom_line(aes(y = v_func, colour = 'F(x)'), linewidth = 1.1)+
+  geom_line(aes(y = v, colour = 'v' ), linewidth = 1.1)+
+  geom_line(aes(y = v_), linetype = 'dashed')+
+  geom_line(aes(y = v_max), linetype = 'dashed')+
+  geom_ribbon(data=subset(tester, x <= 13000), 
+              aes(ymin=v,ymax=v_func), fill="red", alpha=0.5) +
+  geom_ribbon(data=subset(tester, x >= 13000), 
+              aes(ymin=v,ymax=v_func), fill="black", alpha=0.5) +
+  theme_bw()+
+  scale_color_manual(values = c('red', 'black'))
+
+tester %>%
+  subset( x > 10000)%>%
+  ggplot(aes(x=x))+
+  geom_line(aes(y = v_func, colour = 'F(x)'), linewidth = 1.1)+
+  geom_line(aes(y = v, colour = 'v' ), linewidth = 1.1)+
+  geom_line(aes(y = v_), linewidth = 1.1, linetype = 'dashed')+
+  geom_line(aes(y = v_max), linewidth = 1.1, linetype = 'dashed', colour = 'red')+
+  geom_ribbon(data=subset(tester, x>=10000 & x <= 20000), 
+              aes(ymin=v_max,ymax=1.8*v), fill="red", alpha=0.5) +
+  geom_ribbon(data=subset(tester, x>=10000 & x <= 14750), 
+              aes(ymin=v,ymax=v_func), fill="red", alpha=0.5) +
+  geom_ribbon(data=subset(tester, x >= 14750 & x>=10000), 
+              aes(ymin=v,ymax=v_func), fill="black", alpha=0.5) +
+  
+  theme_bw()+
+  scale_color_manual(values = c('red', 'black'))+
+  ylab('F(x)')+
+  theme(legend.position = 'bottom')+
+  labs(color=NULL)
 ```
 
 

@@ -41,29 +41,19 @@ For this version of the sensitivity analysis, I generate combinations based only
 
 # I. Get a baseline dataframe with all the parameters we may want to test. ####
 
-# It is a dataframe because it includes a lot of possible values for v and gamma, 
-# which choice is endogeneous
-dat_aqua = read.csv(here("data", 
-                         "aqua_par_farm.csv"))
+# It is a dataframe because it includes a lot of possible values for v and gamma
 
-dat_aqua = dat_aqua %>% mutate(v = 11293*Totoaba_Age)
-baseline = dat_aqua %>% 
-  mutate(cost_per_kilo_toto = Totoaba_Age*2,
-         cost_per_ton_toto = cost_per_kilo_toto * 1000)%>%
-  subset(Gamma<=1.1 & Gamma>0.9) %>%
-  select(Gamma,
-         v)%>%
-  rename(gamma = Gamma)%>%
-  mutate(beta = beta, 
-         alpha = alpha, 
-         gamma = .99*beta, 
-         W = W_mid, 
-         c = c,
-         r = r, 
-         k = k,
-         sigma = sigma,
-         spec = 'baseline', 
-         transformation = NA)
+baseline = data.frame(beta = beta, 
+                      alpha = alpha, 
+                      gamma = gamma, 
+                      W = W_mid, 
+                      c = c,
+                      v = v,
+                      r = r, 
+                      k = k,
+                      sigma = sigma,
+                      spec = 'baseline', 
+                      transformation = NA)
 
 params_sensitivity = baseline
 
@@ -72,7 +62,7 @@ params_sensitivity = baseline
 # Little sloppy, but the idea is to make sure all vectors are the same length
 # for storage in dataframe
 v_sens = c(.01, 0.05, .1, .5, .6, .7, .8, 1.2)
-gamma_sens = c(0.0001, .01, .1/.99, .2/.99, .5/.99, .8/.99, .9/.99, NA)
+gamma_sens = c(0.0001, .01, .1/gamma, .2/gamma, .5/gamma, .8/gamma, .95/gamma, .9999/gamma)
 c_sens = c(5,  10, 20,30, 40, 45, 50, NA)
 alpha_sens = c(.5, .6, .8, 1.2, 1.5, 1.6, NA, NA)
 W_sens = c(W_low/W_mid,W_high/W_mid, 2, 4, 6, NA, NA, NA)
