@@ -552,12 +552,14 @@ result1 = data.frame( x = seq(1, k))%>%
 
 # result1 %>% subset(differ <1 & differ >-1)
 
-result1 %>% ggplot(aes(x=x))+
+ggplot(aes(x=x))+
   geom_line(aes(y = growth))+
   geom_line(aes(y = qty_monop))+
   ylab('Qty : growth / harvest')+
   theme_bw()
 #  geom_vline(xintercept =8447*1000)
+
+result1 <- write_csv(result1, here("data","result1.csv"))
 ```
 
 Now, we need to think. Several things : 
