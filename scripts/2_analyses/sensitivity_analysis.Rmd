@@ -86,6 +86,9 @@ for(name in sensitivity_values$var){
   # Loop over each value : store data with (i) what variable is modified and
   # (ii) the values we apply to them
   for (val in to_mult){
+    
+    
+    
     dat = baseline
   
     idea= as.name(name)
@@ -588,6 +591,29 @@ I have an issue with the best way to plot data. I think using a long format is b
 
 ```{r}
 
-ggplot(a, aes(x=transformation, y=value, color=transformation)) +
-  geom_line()
+result1 <- as.data.frame(read.csv(here("data","result1.csv")) %>% select(x, growth) %>% rename(value=x))
+
+a = store %>% 
+  pivot_longer(cols = to_long, 
+               names_to = 'output',
+               values_to = 'value')
+a <- a %>% 
+  filter(spec=="c and v") %>% 
+  filter(str_detect(output, "ss_")) %>% 
+  select(value, output, spec, transformation) 
+a$value <- as.integer(a$value)
+
+
+merged <- full_join(result1, a)
+merged2 <- merged %>% drop_na()
+
+ggplot() +
+  geom_line(data=merged, aes(x = value, y = growth)) +
+  geom_point(data=merged2, aes(x = value, y = growth, color=transformation))
+
+#Maybe select the points and create plots showing the variability in steady states by a given parameter (x axis = spec; y axis = values)
+
+ggplot() +
+  geom_point(data=merged2, aes(x=transformation, y=value, color=spec))
+
 ```
