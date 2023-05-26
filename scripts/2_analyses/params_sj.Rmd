@@ -593,12 +593,15 @@ result1 = result1 %>% mutate(q_cournot_harvest = q_cournot_wild_own(x),
 
 result1 %>%
   ggplot(aes(x = x))+
-  geom_line(aes(y = growth, colour = 'Growth'))+
-  geom_line(aes(y = qty_monop, colour = 'Monopoly harvest'))+
-  geom_line(aes(y = q_cournot_harvest, colour = 'Cournot harvest'))+
+  #geom_line(aes(y = growth, colour = 'Growth'))+
+  geom_line(aes(y = qty_monop, colour = 'Monopoly harvest'), linewidth= 1.1)+
+  geom_line(aes(y = q_cournot_harvest, colour = 'Cournot harvest'), linewidth = 1.1)+
   #geom_line(aes(y = q_cournot_farmed, colour = 'Cournot farmed'))+
   theme_bw()+
-  ggtitle('Equilibria for Cournot competition compared to monopoly')
+  #ggtitle('Equilibria for Cournot competition compared to monopoly')+
+  scale_color_manual(values = c( 'lightgreen','black'))+
+  theme(legend.position = 'bottom')+
+  labs(color=NULL)
 ```
 
 ### D. Run prelim analysis : Bertrand
@@ -617,7 +620,7 @@ s_b_own = function(x){
   return(y)
 }
 
-q_b_own = function(x){
+q_b_own = function(x,v,c){
   y = ((sigma^2)*(x^2)*b_w*(b_f*(2*a_w+e*v) + c*((e^2)- 2*b_f*b_w) + e*a_f))/((sigma^2)*(x^2)*(4*b_w*b_f - (e^2)) + 2*W*b_w*(2*b_f*b_w - (e^2)))
   return(y)
 }
@@ -627,16 +630,23 @@ quantity_farmed = function(s){
   return(y)
 }
 
-result1 = result1 %>% mutate(q_bertrand_harvest = q_b_own(x),
+result1 = result1 %>% mutate(q_bertrand_harvest = q_b_own(x,v,c),
+                             q_bertrand_harvest_illustration = q_b_own(x, .5*v,c),
+                             q_bertrand_harvest_c_illustration = q_b_own(x,v,10*c),
                              q_bertrand_farmed = quantity_farmed(s_b_own(x)))
 
 result1 %>%
   ggplot(aes(x = x))+
-  geom_line(aes(y = qty_monop, colour = 'Monopoly harvest'))+
-  geom_line(aes(y = growth, colour = 'Growth'))+
-  geom_line(aes(y = q_bertrand_harvest, colour = 'Betrand harvest'))+
-  geom_line(aes(y = q_bertrand_farmed, colour = 'Bertrand farmed'))+
-  theme_bw()
+  geom_line(aes(y = qty_monop, colour = 'Monopoly harvest'), linewidth = 1.1)+
+  #geom_line(aes(y = growth, colour = 'Growth'))+
+  geom_line(aes(y = q_bertrand_harvest, colour = 'Betrand harvest'), linewidth = 1.1)+
+  geom_line(aes(y = q_bertrand_harvest_illustration, colour = 'Betrand with lower v'), linewidth = 1.1, linetype = 'dashed')+
+  #geom_line(aes(y = q_bertrand_farmed, colour = 'Bertrand farmed'))+
+  scale_color_manual(values = c( 'red','red','black'))+
+  ylab('Harvest')+
+  theme_bw()+
+  theme(legend.position = 'bottom')+
+  labs(color=NULL)
 ```
 
 ## E. Parse all
@@ -905,6 +915,65 @@ tester %>%
   ylab('F(x)')+
   theme(legend.position = 'bottom')+
   labs(color=NULL)
+```
+
+# Graph for presentation 
+
+```{r}
+
+result1 %>%
+  subset(x < 1.5*max(actual_steady))%>%
+  mutate(q_pt = ((alpha-c) * x^2 * sigma^2)/(4*W + beta * sigma^2 * x^2))%>%
+  ggplot(aes(x=x))+
+  geom_line(aes(y = growth, colour = 'Growth'), linewidth = 1)+
+  geom_line(aes(y = qty_monop, colour = 'Monopoly'), linewidth = 1)+
+  geom_line(aes(y = q_cournot_harvest, colour = 'Cournot'), linewidth = 1)+
+  geom_line(aes(y = q_bertrand_harvest, colour = 'Bertrand'), linewidth = 1)+
+  geom_line(aes(y = q_pt, colour = 'Price taker'), linewidth = 1)+
+  # Vertical lines
+  #geom_segment(x = actual_steady[1], xend = actual_steady[1], y=0, yend=growth(actual_steady[1]), linetype = 2)+
+  #geom_segment(x = actual_steady[2], xend = actual_steady[2], y=0, yend=growth(actual_steady[2]), linetype = 2)+
+  #geom_segment(x = actual_steady[3], xend = actual_steady[3], y=0, yend=growth(actual_steady[3]), linetype = 2)+
+  # Horizontal lines
+  #geom_segment(x = 0, xend = actual_steady[1], y=growth(actual_steady[1]), yend=growth(actual_steady[1]), linetype = 2)+
+  #geom_segment(x = 0, xend = actual_steady[2], y=growth(actual_steady[2]), yend=growth(actual_steady[2]), linetype = 2)+
+  #geom_segment(x = 0, xend = actual_steady[3], y=growth(actual_steady[3]), yend=growth(actual_steady[3]), linetype = 2)+
+  theme_bw()+
+  ylab('Growth / harvest')+
+  scale_color_manual(values = c('red','lightgreen','grey', 'black', 'lightblue' ))+
+  labs(colour=NULL)+
+  theme(legend.position = 'bottom')
+```
+
+```{r}
+growth = function(x,r){
+  y = r*x*(1-x/k)
+  return(y)
+}
+
+result1 %>%
+  mutate(q_pt = ((alpha-c) * x^2 * sigma^2)/(4*W + beta * sigma^2 * x^2),
+         growth = growth(x,.12))%>%
+  subset(x < 1.5*max(actual_steady))%>%
+  ggplot(aes(x=x))+
+  geom_line(aes(y = growth, colour = 'Growth'), linewidth = 1)+
+  geom_line(aes(y = qty_monop, colour = 'Monopoly'), linewidth = 1)+
+  geom_line(aes(y = q_cournot_harvest, colour = 'Cournot'), linewidth = 1)+
+  geom_line(aes(y = q_bertrand_harvest_c_illustration, colour = "Bertrand (cost = 10c)"), linewidth = 1)+
+  #geom_line(aes(y = q_pt, colour = 'Price taker'),linewidth = 1)+
+  # Vertical lines
+  #geom_segment(x = actual_steady[1], xend = actual_steady[1], y=0, yend=growth(actual_steady[1]), linetype = 2)+
+  #geom_segment(x = actual_steady[2], xend = actual_steady[2], y=0, yend=growth(actual_steady[2]), linetype = 2)+
+  #geom_segment(x = actual_steady[3], xend = actual_steady[3], y=0, yend=growth(actual_steady[3]), linetype = 2)+
+  # Horizontal lines
+  #geom_segment(x = 0, xend = actual_steady[1], y=growth(actual_steady[1]), yend=growth(actual_steady[1]), linetype = 2)+
+  #geom_segment(x = 0, xend = actual_steady[2], y=growth(actual_steady[2]), yend=growth(actual_steady[2]), linetype = 2)+
+  #geom_segment(x = 0, xend = actual_steady[3], y=growth(actual_steady[3]), yend=growth(actual_steady[3]), linetype = 2)+
+  theme_bw()+
+  ylab('Growth / harvest')+
+  scale_color_manual(values = c('red','lightgreen','grey', 'black', 'lightblue' ))+
+  labs(colour=NULL)+
+  theme(legend.position = 'bottom')
 ```
 
 
