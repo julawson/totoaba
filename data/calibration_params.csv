@@ -13,3 +13,8 @@
 "12","gamma",1374.44382481067,"Substitutability","unitless"
 "13","v",50818.5,"unit cost of farming","USD/ton of biomass"
 "14","c",2658.197283344,"unit costs associated with trading","USD/ton of biomass"
+"15","age",4.5,"age of totoaba raised","years"
+"16","gamma_prim",0.833920197,"Substitution based on weight","unitless"
+"17","gamma",1374.44382481067,"Substitutability","unitless"
+"18","v",50818.5,"unit cost of farming","USD/ton of biomass"
+"19","c",2658.197283344,"unit costs associated with trading","USD/ton of biomass"
