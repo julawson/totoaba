@@ -551,8 +551,8 @@ result1 = data.frame( x = seq(1, k))%>%
          differ = growth - qty_monop)
 
 # result1 %>% subset(differ <1 & differ >-1)
-
-ggplot(aes(x=x))+
+result1%>%
+  ggplot(aes(x=x))+
   geom_line(aes(y = growth))+
   geom_line(aes(y = qty_monop))+
   ylab('Qty : growth / harvest')+
