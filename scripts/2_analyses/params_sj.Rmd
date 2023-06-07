@@ -871,6 +871,8 @@ data.frame(x = seq(1,100))%>%
   annotate('text', x = 103, y = 1.55, label= 'C') +
   theme(legend.position = "none")
 
+#ggsave(here("visuals", "Figure2.jpg"))
+
 ```
 
 Illustration for the proof of Lemma 2, intuition : 
@@ -963,6 +965,8 @@ result1 %>%
   scale_color_manual(values = c('red','lightgreen','grey', 'black', 'lightblue' ))+
   labs(colour=NULL)+
   theme(legend.position = 'bottom')
+
+ggsave(here("visuals", "Figure3.jpg"))
 ```
 
 ```{r}
