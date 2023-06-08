@@ -521,8 +521,8 @@ dat_aqua = dat_aqua %>%
          cost_per_kilo_buche = cost_per_kilo_toto/conv,
          actual_v = 11293*Totoaba_Age)
 
-gamma_prim = dat_aqua %>% subset(Gamma>0.8 & Gamma < 1) %>% select(Gamma) %>% pull()
-gamma = gamma_prim*beta
+#gamma_prim = dat_aqua %>% subset(Gamma>0.8 & Gamma < 1) %>% select(Gamma) %>% pull()
+#gamma = gamma_prim*beta
 
 # Determine cost for comparable fish
 age = dat_aqua %>% subset(Gamma>0.8 & Gamma < 1) %>% select(Totoaba_Age) %>% pull()
@@ -687,7 +687,7 @@ result1 %>%
   geom_line(aes(y = q_bertrand_harvest, colour = 'Bertrand'), linewidth = 1)+
   theme_bw()+
   ylab('Growth / harvest')+
-  scale_color_aaas()+
+  scale_color_discrete()+
 # Do we know why adding geom_segments to the plot did not work in a loop? Most likely will be three ss though
   geom_segment(x = actual_steady[1], xend = actual_steady[1], y=0, yend=growth(actual_steady[1]), linetype=2)+
   geom_segment(x = actual_steady[2], xend = actual_steady[2], y=0, yend=growth(actual_steady[2]), linetype=2)+
@@ -793,13 +793,13 @@ In order to manage that, I'll run all the potential values of $\gamma$ and $v$, 
 ```{r}
 dat_sensititivy = read.csv(here('data', 'sensitivity_steady_states.csv'))
 print('Distribution of monopoly steady states')
-summary(dat_sensititivy$ss_monop_1)
+summary(dat_sensititivy$ss_monop1)
 
 print('Distribution of Cournot steady states')
-summary(dat_sensititivy$ss_cournot_1)
+summary(dat_sensititivy$ss_cournot1)
 
 print('Distribution of Betrand steady states')
-summary(dat_sensititivy$ss_bertrand_1)
+summary(dat_sensititivy$ss_bertrand1)
 ```
 
 

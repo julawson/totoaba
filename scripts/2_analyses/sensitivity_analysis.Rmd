@@ -11,6 +11,7 @@ output: html_document
 knitr::opts_chunk$set(echo = F)
 
 library(tidyverse)
+library(scales)
 library("ggsci")
 library(here)
 library(knitr)
@@ -61,12 +62,12 @@ params_sensitivity = baseline
 # Important : define those values as COEFFICIENTS to be applied to the variables
 # Little sloppy, but the idea is to make sure all vectors are the same length
 # for storage in dataframe
-v_sens = c(.01, 0.05, .1, .5, .6, .7, .8, 1.2)
-gamma_sens = c(0.0001, .01, .1/gamma, .2/gamma, .5/gamma, .8/gamma, .95/gamma, .9999/gamma)
+v_sens = c( 0.05, .1, .5, .6, .7, .8, 1.2, 1.5)
+gamma_sens = c(0.0001, .01, .1/gamma*beta, .2/gamma*beta, .5/gamma*beta, .8/gamma*beta, .95/gamma*beta, .9999/gamma*beta,)
 c_sens = c(5,  10, 20,30, 40, 45, 50, NA)
-alpha_sens = c(.5, .6, .8, 1.2, 1.5, 1.6, NA, NA)
+alpha_sens = c(.5, .6, .8, 1.2, 1.4, 1.6, 1.8, 2)
 W_sens = c(W_low/W_mid,W_high/W_mid, 2, 4, 6, NA, NA, NA)
-beta_sens = c(.5, .8, 1.2, 1.5, NA, NA, NA, NA)
+beta_sens = c(.5, .8, 1.2, 1.5, 1.8, 2, NA, NA)
 # Store into data.frame
 sensitivity_values = data.frame()%>%
   rbind(v_sens, gamma_sens, c_sens, alpha_sens, W_sens, beta_sens)
@@ -87,8 +88,6 @@ for(name in sensitivity_values$var){
   # (ii) the values we apply to them
   for (val in to_mult){
     
-    
-    
     dat = baseline
   
     idea= as.name(name)
@@ -100,6 +99,9 @@ for(name in sensitivity_values$var){
     params_sensitivity = rbind(params_sensitivity, dat)
   }
 }
+
+c_sens = seq(0.1, 8, by = .2)*c
+v_sens = seq(0.1,8, by = .1)*v
 a = expand_grid(c_sens, v_sens)
 colnames(a) = c('c', 'v')
 a = cbind(baseline %>% select(-c('c', 'v', 'spec', 'transformation'))%>% slice(rep(1:n(), each = nrow(a))), a)
@@ -107,6 +109,17 @@ a = a %>% mutate(spec = 'c and v',
                  transformation = paste(c,' and ', v))
 
 params_sensitivity = rbind(params_sensitivity, a)
+
+c_sens = seq(0.1, 8, by = .4)*c
+v_sens = seq(0.1,8, by = .4)*v
+gamma_sens = seq(.1, .9, by = .2)*beta
+a = expand_grid(c_sens, v_sens, gamma_sens)
+colnames(a) = c('c', 'v',"gamma")
+a = cbind(baseline %>% select(-c('c', 'v', 'gamma', 'spec', 'transformation'))%>% slice(rep(1:n(), each = nrow(a))), a)
+a = a %>% mutate(spec = 'c and v and gamma', 
+                 transformation = paste(c,' and ', v, 'and', gamma))
+params_sensitivity = rbind(params_sensitivity, a)
+
 rm(a)
 print(paste0('There are ', nrow(params_sensitivity)," combinations to test" ))
 ```
@@ -572,6 +585,15 @@ if(run_==T){
   store = read.csv(here('data','sensitivity_steady_states_last.csv'))
 }
 
+# Reassign variables properly
+for(variable in to_assign){
+        assign(variable, 
+               params_sensitivity[1,] %>% 
+                 select(all_of(variable)) %>% 
+                 pull())
+}
+
+
 ```
 
 For example : 
@@ -617,3 +639,116 @@ ggplot() +
   geom_point(data=merged2, aes(x=transformation, y=value, color=spec))
 
 ```
+
+# Sensitivity graphs
+
+```{r}
+# Define grid of colours
+low = 'darkred'
+mid = 'white'
+high = 'green'
+
+# Set data to long format
+to_keep = c('c', 'v', 'ss_monop1', 'ss_cournot1','ss_bertrand1')
+df_cv = store %>% 
+  subset(spec == 'c and v')%>% 
+  select(all_of(to_keep))%>%
+  drop_na()%>%
+  mutate(ss_cournot_norm = (ss_cournot1 - ss_monop1)/ss_monop1*100,
+         ss_bertrand_norm = (ss_bertrand1 - ss_monop1)/ss_monop1*100)
+
+df_cv = df_cv %>% pivot_longer(cols = !c('c','v'),
+                               names_to = 'output',
+                               values_to = 'value')
+
+# Rename output for nice columns in the facet graph
+output2 = function(x){
+  if(x =='ss_cournot_norm'){
+    return('Cournot steady state - normalized')
+  }else if(x == 'ss_bertrand_norm'){
+    return('Bertrand steady state - normalized')
+  }
+}
+
+# Initial equilibrium data points
+init_eq_m = store %>% subset(spec == 'baseline') %>% select(ss_monop1)%>%pull()
+init_eq_b =  store %>% subset(spec == 'baseline') %>% select(ss_bertrand1)%>%pull()
+init_eq_c =  store %>% subset(spec == 'baseline') %>% select(ss_cournot1)%>%pull()
+init_eq = data.frame(c=c(c,c), v=c(v,v), value = c(init_eq_c/init_eq_m,
+                                                   init_eq_b/init_eq_m))
+# What we believe is fair for actual c
+new_c = data.frame(c=c(3*c,3*c), v=c(v,v), value = c(1, 1))
+# Impact of policy outcome if we subsidize v by 1000 per ton
+new_v = data.frame(c=c(3*c,3*c), v=c(v-10000,v-10000), value = c(1, 1))
+
+
+p = df_cv %>%
+  subset(output %in% c('ss_cournot_norm', 'ss_bertrand_norm'))%>%
+  mutate(output2 = sapply(output,output2))%>%
+  ggplot(aes(x = c, y = v, fill = value))+
+  geom_tile()+
+  #scale_fill_distiller(type = 'div',
+  #                     palette = 'RdYlGn',
+  #                     direction = 1, 
+  #                     name = '% change')+
+  scale_fill_gradient2(low = low, 
+                       mid = mid,
+                       high = high)+
+  facet_grid(.~ output2)+
+  theme_bw()+
+  theme(legend.position = 'bottom')+
+  guides(colour = guide_legend(title.position = "top"))
+
+p + 
+  labs(fill = '% change compared to steady state monopoly')+
+  geom_point(data = init_eq, col = 'black')+
+  geom_point(data = new_c, col = 'grey')
+#  geom_point(data = new_v, col = 'blue')
+
+  
+```
+
+```{r}
+to_keep = c('c', 'v','gamma', 'ss_monop1', 'ss_cournot1','ss_bertrand1')
+df_cv = store %>% 
+  subset(spec == 'c and v and gamma')
+
+summary(df_cv$ss_monop2)
+summary(df_cv$ss_bertrand2)
+
+df_cv  = df_cv %>% 
+  select(all_of(to_keep))%>%
+  drop_na()%>%
+  mutate(ss_cournot_norm = (ss_cournot1 - ss_monop1)/ss_monop1*100,
+         ss_bertrand_norm = (ss_bertrand1 - ss_monop1)/ss_monop1*100)
+
+df_cv = df_cv %>% pivot_longer(cols = !c('c','v','gamma'),
+                               names_to = 'output',
+                               values_to = 'value')
+
+
+df_cv %>%
+  mutate(gamma_rel = gamma/beta)%>%
+  subset(output %in% c('ss_cournot_norm', 'ss_bertrand_norm'))%>%
+  ggplot(aes(x = c, y = v, fill = value))+
+  geom_tile()+
+  scale_fill_gradient2(low = low, 
+                       mid = mid,
+                       high = high)+
+  facet_grid(vars(gamma),vars(output))+
+  theme_bw()+
+  theme(legend.position = 'bottom')+
+  guides(colour = guide_legend(title.position = "top"))
+
+```
+
+## Idea for other analysis
+
+### 1. Need to check when things backfire i.e when we can have ss_bertrand1 < ss_monop1
+
+```{r}
+
+
+```
+
+### 2. Understand the evolution of the steady states with respect to the other variables
