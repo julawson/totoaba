@@ -9,7 +9,7 @@
 "8","W_high",3.4708125,"Parameter cost such that MC are equal at historical value - high","USD"
 "9","avg_cost",8215.34,"Average cost per vessel trip in data","USD"
 "10","age",4.5,"age of totoaba raised","years"
-"11","gamma_prim",0.833920197,"Substitution based on weight","unitless"
+"11","gamma_prim",0.9,"Substitution based on weight","unitless"
 "12","gamma",1374.44382481067,"Substitutability","unitless"
 "13","v",50818.5,"unit cost of farming","USD/ton of biomass"
 "14","c",2658.197283344,"unit costs associated with trading","USD/ton of biomass"

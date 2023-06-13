@@ -532,7 +532,7 @@ v = dat_aqua %>% subset(Gamma>0.8 & Gamma < 1) %>% select(actual_v) %>% pull()
 gamma = 0.9*beta
 # Cost parameter for monopoly : 
 params = append(params, c('age','gamma_prim','gamma', 'v', 'c'))
-value = append(value, c(age,gamma_prim, gamma, v, c))
+value = append(value, c(age,gamma/beta, gamma, v, c))
 concept = append(concept, c('age of totoaba raised', 'Substitution based on weight', 'Substitutability', 'unit cost of farming', 'unit costs associated with trading'))
 units = append(units, c('years', 'unitless', 'unitless', 'USD/ton of biomass', 'USD/ton of biomass'))
 
@@ -656,10 +656,12 @@ result1 %>%
 ```{r}
 result1 = result1 %>% mutate(ss_monop = growth - qty_monop,
                                ss_cournot = growth - q_cournot_harvest,
-                               ss_bertrand = growth - q_bertrand_harvest)
+                               ss_bertrand = growth - q_bertrand_harvest,
+                               q_pt = ((alpha-c) * x^2 * sigma^2)/(4*W + beta * sigma^2 * x^2),
+                               ss_q_pt = growth - q_pt)
 steady_states = c()
   
-for(variable in c('ss_monop', 'ss_cournot', 'ss_bertrand')){
+for(variable in c('ss_monop', 'ss_cournot', 'ss_bertrand', 'ss_q_pt')){
   ss = which(sign(eval(parse(text = paste0('result1$',variable)))) != lag(sign(eval(parse(text = paste0('result1$', variable))))))
     if(length(ss)==1){
       steady_states = append(steady_states, c(result1[ss, 1], 
@@ -669,7 +671,7 @@ for(variable in c('ss_monop', 'ss_cournot', 'ss_bertrand')){
       steady_states = append(steady_states, c(result1[1, ss[1]], 
                                               result1[1, ss[2]],
                                               NA))
-    }else if(lenght(ss)==3){
+    }else if(length(ss)==3){
       steady_states = append(steady_states, c(result1[1, ss[1]], 
                                               result1[1, ss[2]],
                                               result1[2, ss[3]]))
@@ -719,23 +721,33 @@ result1 %>%
 Outputs of the model are: 
 ```{r}
 # Analyse market prices : 
-
 # In case of monopoly : 
 dat_monop = result1 %>% subset(x %in% steady_states[1:3]) %>%
-  select(qty_monop)%>%
+  select(x, qty_monop)%>%
   mutate(p = alpha - beta*qty_monop)
 kable(dat_monop)
 # In case of cournot :
 dat_cournot = result1 %>% subset(x %in% steady_states[4:6])%>%
-  select(q_cournot_farmed, q_cournot_harvest)%>%
+  select(x, q_cournot_farmed, q_cournot_harvest)%>%
   mutate(price_paid_to_poacher = s_c_own(x))
 kable(dat_cournot)
 # In case of Bertrand : 
 dat_bertrand = result1 %>% subset(x %in% steady_states[7:9])%>%
-  select(q_bertrand_farmed, q_bertrand_harvest)%>%
+  select(x, q_bertrand_farmed, q_bertrand_harvest)%>%
   mutate(price_paid_to_poacher = s_b_own(x),
          diff_cost = price_paid_to_poacher + c - v)
 kable(dat_bertrand)
+
+dat_q_pt = result1 %>% subset(x %in% steady_states[10:12])%>%
+  select(x, q_pt)
+kable(dat_q_pt)
+
+print(paste0('Monopoly scenario with cost parameter c=',c, ' is a ', round((dat_monop$x - dat_q_pt$x)/dat_q_pt$x*100,2), '% variation in stock in tonnes (compared to OA) or, equivalently, of ', round((dat_monop$x - dat_q_pt$x)*1000/25.7), ' adult totoabas'))
+
+print(paste0('Worst case scenario with cost parameter c=',c, ' is a ', round((dat_bertrand$x - dat_monop$x)/dat_monop$x*100,2), '% variation in stock in tonnes or, equivalently, of ', round((dat_bertrand$x - dat_monop$x)*1000/25.7), ' adult totoabas'))
+
+print(paste0('Best case scenario with cost parameter c=',c, ' is a ', round((dat_cournot$x - dat_monop$x)/dat_monop$x*100,2), '% variation in stock in tonnes or, equivalently, of ', round((dat_cournot$x - dat_monop$x)*1000/25.7), ' adult totoabas'))
+
 ```
 
 
