@@ -363,9 +363,14 @@ From Julia's calculation, we have average cost. Now the procedure is to find the
 ```{r}
 
 # Define coefficients for average costs in different estimation scenarios
-avg_cost = 8215.34 # This is average cost per trip
-min_cost = 3992.27 # This is the minimum cost per trip (low season)
-max_cost = 13327.92 # This is the maximum cost per trip (high season)
+dat_c = read.csv(here("data","c_par.csv"))
+
+
+to_add = (dat_c$total_cost-dat_c$cost_gear_confiscations)/dat_c$vesseldays_year
+
+avg_cost = 8215.34 + to_add# This is average cost per trip
+min_cost = 3992.27 + to_add# This is the minimum cost per trip (low season)
+max_cost = 13327.92 +to_add# This is the maximum cost per trip (high season)
 
 # Define the number of trips as a continuous variable that ranges from 0 to realized trips majored by 50%
 values_W = data.frame()
@@ -478,6 +483,8 @@ dat_c = read.csv(here("data","c_par.csv"))
 totoaba_ton = dat_c$totoaba_year*25.7/1000
 
 c = dat_c$total_cost/totoaba_ton
+c = dat_c$cost_gear_confiscations/totoaba_ton
+
 ```
 
 
@@ -486,8 +493,6 @@ c = dat_c$total_cost/totoaba_ton
 ### A. Parameters, units of measure
 
 ```{r}
-
-
 # Demand for totoaba buche : USD per unit of biomass of totoaba
 alpha = model$coefficients[1]# Choke price in USD 
 beta = -model$coefficients[2] # Demand coefficient for 
@@ -519,7 +524,7 @@ dat_aqua = dat_aqua %>%
   mutate(cost_per_kilo_toto = Totoaba_Age*2,
          cost_per_ton_toto = cost_per_kilo_toto * 1000,
          cost_per_kilo_buche = cost_per_kilo_toto/conv,
-         actual_v = 11293*Totoaba_Age)
+         actual_v = 11293 * Totoaba_Age)
 
 #gamma_prim = dat_aqua %>% subset(Gamma>0.8 & Gamma < 1) %>% select(Gamma) %>% pull()
 #gamma = gamma_prim*beta
@@ -742,11 +747,18 @@ dat_q_pt = result1 %>% subset(x %in% steady_states[10:12])%>%
   select(x, q_pt)
 kable(dat_q_pt)
 
-print(paste0('Monopoly scenario with cost parameter c=',c, ' is a ', round((dat_monop$x - dat_q_pt$x)/dat_q_pt$x*100,2), '% variation in stock in tonnes (compared to OA) or, equivalently, of ', round((dat_monop$x - dat_q_pt$x)*1000/25.7), ' adult totoabas'))
+print(paste0('Monopoly scenario with cost parameter c=',c, ' is a ', round((dat_monop$x - dat_q_pt$x)/dat_q_pt$x*100,2), '% variation in stock in tonnes (compared to OA) or, equivalently, of ', round((dat_monop$x - dat_monop$x)*1000/25.7), ' adult totoabas'))
 
+# Stock and harvest variation compared to baseline - Bertrand
 print(paste0('Worst case scenario with cost parameter c=',c, ' is a ', round((dat_bertrand$x - dat_monop$x)/dat_monop$x*100,2), '% variation in stock in tonnes or, equivalently, of ', round((dat_bertrand$x - dat_monop$x)*1000/25.7), ' adult totoabas'))
 
+print(paste0('Worst case scenario with cost parameter c=',c, ' is a ', (dat_bertrand$q_bertrand_harvest- dat_monop$qty_monop), 'tons in harvest in tonnes or, equivalently, of ', round((dat_bertrand$q_bertrand_harvest- dat_monop$qty_monop)*1000/25.7), ' adult totoabas'))
+
+# Stock and harvest variation compared to baseline - Cournot
+
 print(paste0('Best case scenario with cost parameter c=',c, ' is a ', round((dat_cournot$x - dat_monop$x)/dat_monop$x*100,2), '% variation in stock in tonnes or, equivalently, of ', round((dat_cournot$x - dat_monop$x)*1000/25.7), ' adult totoabas'))
+
+print(paste0('Best case scenario with cost parameter c=',c, ' is a ', (dat_cournot$q_cournot_harvest- dat_monop$qty_monop), 'tons variation in harvest in tonnes or, equivalently, of ', round((dat_cournot$q_cournot_harvest- dat_monop$qty_monop)*1000/25.7), ' adult totoabas'))
 
 ```
 

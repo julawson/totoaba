@@ -54,7 +54,7 @@ baseline = data.frame(beta = beta,
                       k = k,
                       sigma = sigma,
                       spec = 'baseline', 
-                      transformation = NA)
+                      transformation = 1)
 
 params_sensitivity = baseline
 
@@ -64,7 +64,7 @@ params_sensitivity = baseline
 # for storage in dataframe
 v_sens = c( 0.05, .1, .5, .6, .7, .8, 1.2, 1.5)
 gamma_sens = c(0.0001, .01, .1/gamma*beta, .2/gamma*beta, .5/gamma*beta, .8/gamma*beta, .95/gamma*beta, .9999/gamma*beta)
-c_sens = c(5,  10, 20,30, 40, 45, 50, NA)
+c_sens = c(0, 2,  5, 8, 10, 15, 20, 50)
 alpha_sens = c(.5, .6, .8, 1.2, 1.4, 1.6, 1.8, 2)
 W_sens = c(W_low/W_mid,W_high/W_mid, 2, 4, 6, NA, NA, NA)
 beta_sens = c(.5, .8, 1.2, 1.5, 1.8, 2, NA, NA)
@@ -101,10 +101,12 @@ for(name in sensitivity_values$var){
 }
 
 c_sens = seq(0.1, 8, by = .2)*c
-v_sens = seq(0.1,8, by = .1)*v
+v_sens = seq(0.1,1.5, by = .05)*v
 a = expand_grid(c_sens, v_sens)
 colnames(a) = c('c', 'v')
+
 a = cbind(baseline %>% select(-c('c', 'v', 'spec', 'transformation'))%>% slice(rep(1:n(), each = nrow(a))), a)
+
 a = a %>% mutate(spec = 'c and v', 
                  transformation = paste(c,' and ', v))
 
@@ -145,14 +147,13 @@ run_model = function(){
   
   # 1. Run monopoly
   qty_monop = function(x){
-    y = (alpha - c)*sigma^2 * x^2 / (2*beta* sigma^2 * x^2 + 2*W)
+    y = ((alpha - c)*sigma^2 * x^2) / (2*beta* sigma^2 * x^2 + 2*W)
     return(y)
   }
   # Store results
   result1 = data.frame( x = seq(1, k))%>%
     mutate(growth = growth(x),
-           qty_monop = qty_monop(x),
-           differ = growth - qty_monop)
+           qty_monop = qty_monop(x))
   # 2. Run Cournot
   alpha_w = alpha
   alpha_f = alpha
@@ -229,6 +230,92 @@ run_model = function(){
   
   return(results)
 }
+
+
+run_model_ss = function(){
+  # Function to run the model simulation
+  # 0. Define growth = 
+  growth = function(x){
+    y = r*x*(1-x/k)
+    return(y)
+  }
+  
+  # 1. Run monopoly
+  qty_monop = function(x){
+    y = ((alpha - c)*sigma^2 * x^2) / (2*beta* sigma^2 * x^2 + 2*W)
+    return(y)
+  }
+  # Store results
+  result1 = data.frame( x = seq(1, k))%>%
+    mutate(growth = growth(x),
+           qty_monop = qty_monop(x))
+  # 2. Run Cournot
+  alpha_w = alpha
+  alpha_f = alpha
+  beta_w = beta
+  beta_f = beta
+
+  q_cournot_wild_own = function(x){
+    y = ((sigma^2)*(x^2)*(2*beta_f*(alpha_w - c) - gamma*(alpha_f - v)))/(4*beta_f*W +     (sigma^2)*(x^2)*(4*beta_f*beta_w - (gamma^2)))
+    return(y)
+  }
+  result1 = result1 %>% mutate(q_cournot_harvest = q_cournot_wild_own(x))
+  
+  # Run Betrand : 
+  e   = gamma/(beta_w*beta_f - (gamma^2))
+  a_f = (alpha_f*beta_w - alpha_w*gamma)/(beta_w*beta_f - (gamma^2))
+  a_w = (alpha_w*beta_f - alpha_f*gamma)/(beta_w*beta_f - (gamma^2))
+  b_f = beta_f/(beta_w*beta_f - (gamma^2))
+  b_w = beta_w/(beta_w*beta_f - (gamma^2))
+  
+  q_b_own = function(x){
+    y = ((sigma^2)*(x^2)*b_w*(b_f*(2*a_w+e*v) + c*((e^2)- 2*b_f*b_w) + e*a_f))/((sigma^2)*(x^2)*(4*b_w*b_f - (e^2)) + 2*W*b_w*(2*b_f*b_w - (e^2)))
+    return(y)
+  }
+  
+
+  
+  result1 = result1 %>% mutate(q_bertrand_harvest = q_b_own(x))
+  
+  # Find steady states : 
+  
+  result1 = result1 %>% mutate(ss_monop = growth - qty_monop,
+                               ss_cournot = growth - q_cournot_harvest,
+                               ss_bertrand = growth - q_bertrand_harvest)
+  steady_states = c()
+  for(variable in c('ss_monop', 'ss_cournot', 'ss_bertrand')){
+    # Comment that
+    ss = which(sign(eval(parse(text = paste0('result1$',variable)))) != lag(sign(eval(parse(text = paste0('result1$', variable))))))
+    
+    if(length(ss)==1){
+      steady_states = append(steady_states, c(result1[ss, 1], 
+                                              NA,
+                                              NA))
+    }
+    else if(length(ss)==2){
+      steady_states = append(steady_states, c(result1[ss[1], 1], 
+                                              result1[ss[2], 1],
+                                              NA))
+
+    }
+    else if(length(ss)==3){
+      steady_states = append(steady_states, c(result1[ss[1],1], 
+                                              result1[ss[2],1],
+                                              result1[ss[3],1]))
+
+    }
+    else if(length(ss)==0){
+      steady_states = append(steady_states, c(NA, NA, NA))
+    }
+    
+  }
+  # Results : 
+  results = append(params,
+                   steady_states)
+  
+  return(results)
+}
+
 
 #Define parallelized version
 run_model_par = function(params){
@@ -375,8 +462,8 @@ To deal with data, there are two layers :
 ```{r}
 run_ = T
 
-if(exists(here('data','sensitivity_steady_states.csv'))){
-  run = F
+if(file.exists(here('data','sensitivity_steady_states_last.csv'))){
+  run_ = F
 }
 
 if(run_==T){
@@ -402,22 +489,29 @@ if(run_==T){
         unlist()
       
       store = rbind(store, 
-                    run_model())
+                    run_model_ss())
     }
+    rm(alpha, beta, W, c, v, gamma)
     # Get names
     colnames(store) = append(colnames(params_sensitivity), 
                              c('ss_monop1', "ss_monop2", "ss_monop3", 'ss_cournot1',
                                'ss_cournot2', 'ss_cournot3', 'ss_bertrand1', "ss_bertrand2", 
-                               'ss_bertrand3', 'harvest_monop1', 'harvest_monop2',
-                               'harvest_monop3', 'harvest_cournot1','harvest_cournot2',
-                               'harvest_cournot3', 'harvest_bertrand1', 'harvest_bertrand2',
-                               'harvest_bertrand3'))
+                               'ss_bertrand3'))
+                               #'harvest_monop1'
+                               #'harvest_monop2',
+                               #'harvest_monop3', 'harvest_cournot1','harvest_cournot2',
+                               #'harvest_cournot3', 'harvest_bertrand1', 'harvest_bertrand2',
+                               #'harvest_bertrand3'
     store['spec'] = as.factor(store$spec)
     store['transformation'] = as.factor(store$transformation)
     store = store %>% mutate_if(is.character, as.numeric)
     # Now that all the steady states stock and harvest rates are computed, do a big mutate for other output variables
     # i. Define output functions : 
-    ### Monopoly
+    ### a. Monopoly ####
+    qty_monop            = function(x, alpha, beta, c, W){
+      y = ((alpha - c)*sigma^2 * x^2) / (2*beta* sigma^2 * x^2 + 2*W)
+    return(y)
+    }
     price_monop          = function(h, alpha, beta){
       y = alpha - beta*h
       return(y)
@@ -431,7 +525,10 @@ if(run_==T){
       return(y)
     }
     # test
-    store = store %>% mutate(price_monop1          = price_monop(harvest_monop1, alpha, beta),
+    store = store %>% mutate(harvest_monop1        = qty_monop(ss_monop1, alpha, beta, c, W),
+                             harvest_monop2        = qty_monop(ss_monop2, alpha, beta, c, W),
+                             harvest_monop3        = qty_monop(ss_monop3, alpha, beta, c, W),
+                             price_monop1          = price_monop(harvest_monop1, alpha, beta),
                              price_monop2          = price_monop(harvest_monop2, alpha, beta),
                              price_monop3          = price_monop(harvest_monop3, alpha, beta),
                              price_poachers_monop1 = price_poachers_monop(ss_monop1, alpha, beta, sigma, c, W),
@@ -440,8 +537,13 @@ if(run_==T){
                              profit_monop1         = profit_monop(harvest_monop1,ss_monop1,alpha, beta, sigma, c, W),
                              profit_monop2         = profit_monop(harvest_monop2,ss_monop2,alpha, beta, sigma, c, W),
                              profit_monop3         = profit_monop(harvest_monop3,ss_monop3,alpha, beta, sigma, c, W))
-    ### Cournot 
-    s_c_own          = function(x, alpha, beta, gamma, sigma, c, W ){
+    ### b. Cournot ####
+    q_cournot        = function(x, alpha, beta, c, gamma, v, W){
+      y = ((sigma^2)*(x^2)*(2*beta*(alpha - c) - gamma*(alpha - v)))/(4*beta*W + (sigma^2)*(x^2)*(4*beta*beta - (gamma^2)))
+    return(y)
+    }
+
+    s_c_own          = function(x, alpha, beta, gamma, sigma, c, W, v){
       y = (2*W*(2*beta*(alpha - c) - gamma*(alpha - v)))/((sigma^2)*(x^2)*(4*beta*beta - gamma^2) + 4*beta*W)
       return(y)
     }
@@ -453,8 +555,8 @@ if(run_==T){
       y = (alpha - beta*hf - gamma*hw - v)*hf
       return(y)
     }
-    profit_trader    = function(hf, hw, x, alpha, beta, gamma, c, W){
-      y = (alpha - beta*hw - gamma*hf - s_c_own(x, alpha, beta, gamma, sigma, c, W) - c)*hw
+    profit_trader    = function(hf, hw, x, alpha, beta, gamma, c, W, v){
+      y = (alpha - beta*hw - gamma*hf - s_c_own(x, alpha, beta, gamma, sigma, c, W, v) - c)*hw
       return(y)
     }
     price_farmed     = function(alpha, beta, gamma, hw, hf){
@@ -466,46 +568,53 @@ if(run_==T){
       return(y)
     }
     
-    store = store %>% mutate(price_poachers_cournot1 = s_c_own(ss_cournot1, alpha, beta, gamma, sigma, c, W),
+    store = store %>% mutate(harvest_cournot1        = q_cournot(ss_cournot1, alpha, beta, c, gamma, v, W),
+                             price_poachers_cournot1 = s_c_own(ss_cournot1, alpha, beta, gamma, sigma, c, W, v),
                              farmed_cournot1         = q_farmed_cournot(price_poachers_cournot1,alpha, beta, gamma, c, v),
                              p_farmed_cournot1       = price_farmed(alpha, beta, gamma, harvest_cournot1, farmed_cournot1),
                              p_wild_cournot1         = price_wild(alpha, beta, gamma, harvest_cournot1, farmed_cournot1),
                              profit_farmed_cournot1  = profit_farm(farmed_cournot1, harvest_cournot1, alpha, beta, gamma, v),
-                             profit_trader_cournot1  = profit_trader(farmed_cournot1, harvest_cournot1, ss_cournot1, alpha, beta, gamma, c,W),
+                             profit_trader_cournot1  = profit_trader(farmed_cournot1, harvest_cournot1, ss_cournot1, alpha, beta, gamma, c, W, v),
                             # Second steady state                        
-                             price_poachers_cournot2 = s_c_own(ss_cournot2, alpha, beta, gamma, sigma, c, W),
+                             harvest_cournot2        = q_cournot(ss_cournot2, alpha, beta, c, gamma, v, W),
+                             price_poachers_cournot2 = s_c_own(ss_cournot2, alpha, beta, gamma, sigma, c, W, v),
                              farmed_cournot2         = q_farmed_cournot(price_poachers_cournot2,alpha, beta, gamma, c, v),
                              p_farmed_cournot2       = price_farmed(alpha, beta, gamma, harvest_cournot2, farmed_cournot2),
                              p_wild_cournot2         = price_wild(alpha, beta, gamma, harvest_cournot2, farmed_cournot2),
                              profit_farmed_cournot2  = profit_farm(farmed_cournot2, harvest_cournot2, alpha, beta, gamma, v),
-                             profit_trader_cournot2  = profit_trader(farmed_cournot2, harvest_cournot2, ss_cournot2, alpha, beta, gamma, c,W),
-                            # Third steady state                        
-                             price_poachers_cournot3 = s_c_own(ss_cournot3, alpha, beta, gamma, sigma, c, W),
+                             profit_trader_cournot2  = profit_trader(farmed_cournot2, harvest_cournot2, ss_cournot2, alpha, beta, gamma, c, W, v),
+                            # Third steady state     
+                             harvest_cournot3        = q_cournot(ss_cournot3, alpha, beta, c, gamma, v, W),
+                             price_poachers_cournot3 = s_c_own(ss_cournot3, alpha, beta, gamma, sigma, c, W, v),
                              farmed_cournot3         = q_farmed_cournot(price_poachers_cournot3,alpha, beta, gamma, c, v),
                              p_farmed_cournot3       = price_farmed(alpha, beta, gamma, harvest_cournot3, farmed_cournot3),
                              p_wild_cournot3         = price_wild(alpha, beta, gamma, harvest_cournot3, farmed_cournot3),
                              profit_farmed_cournot3  = profit_farm(farmed_cournot3, harvest_cournot3, alpha, beta, gamma, v),
-                             profit_trader_cournot3  = profit_trader(farmed_cournot3, harvest_cournot3, ss_cournot3, alpha, beta, gamma, c,W))
+                             profit_trader_cournot3  = profit_trader(farmed_cournot3, harvest_cournot3, ss_cournot3, alpha, beta, gamma, c, W, v))
     # Bertrand
     store = store %>% mutate(e   = gamma/(beta*beta - (gamma^2)),
                              a_f = (alpha*beta - alpha*gamma)/(beta*beta - (gamma^2)),
                              a_w = (alpha*beta - alpha*gamma)/(beta*beta - (gamma^2)),
                              b_f = beta/(beta*beta - (gamma^2)),
                              b_w = beta/(beta*beta - (gamma^2)))
+  q_bertrand       = function(x,v,c, a_f, a_w, b_f, b_w, e,W){
+      y = ((sigma^2)*(x^2)*b_w*(b_f*(2*a_w+e*v) + c*((e^2)- 2*b_f*b_w) + e*a_f))/((sigma^2)*(x^2)*(4*b_w*b_f - (e^2)) + 2*W*b_w*(2*b_f*b_w - (e^2)))
+  return(y)
+  }
   
-  s_b_own          = function(x, a_f, a_w, b_f, b_w, e, W, c){
+  s_b_own          = function(x, a_f, a_w, b_f, b_w, e, W, c, v){
     y = (2*W*b_w*( b_f*(2*a_w + e*v) + c*((e^2) - 2*b_f*b_w) + e*a_f))/((sigma^2)*(x^2)*(4*b_f*b_w - (e^2)) + 2*W*b_w*(2*b_w*b_f - (e^2)))
     return(y)
   }
-  quantity_farmed  = function(s, a_f, a_w, b_f, b_w, e, W, c){
+  quantity_farmed  = function(s, a_f, a_w, b_f, b_w, e, W, c, v){
     y = b_f *(2*b_w*a_f + v*(e^2 - 2*b_w*b_f) + e*(a_w + (s+c)*b_w))/(4*b_f*b_w - e^2)
     return(y)
   }
-  price_farmed     = function(s, a_f, a_w, b_f, b_w, e, c){
+  price_farmed     = function(s, a_f, a_w, b_f, b_w, e, c, v){
     y = (2*b_w*(a_f + v*b_f) + e*(a_w + b_w*(s+c)))/(4*b_f*b_w - e^2)
     return(y)
   }
-  price_trader     = function(s, a_f, a_w, b_f, b_w, e, c){
+  price_trader     = function(s, a_f, a_w, b_f, b_w, e, c, v){
     y = (2*b_f *(a_w+b_w*(s+c))+e*(a_f +v*b_f))/(4*b_f*b_w - e^2)
     return(y)
   }
@@ -518,24 +627,27 @@ if(run_==T){
     return(y)
   }
     
-  store = store %>% mutate(price_poachers_bertrand1 = s_b_own(ss_bertrand1, a_f, a_w, b_f, b_w, e, W, c),
-                           farmed_bertrand1         = quantity_farmed(price_poachers_bertrand1, a_f, a_w, b_f, b_w, e, W, c),
-                           p_farmed_bertrand1       = price_farmed(price_poachers_bertrand1, a_f, a_w, b_f, b_w, e, c),
-                           p_wild_bertrand1         = price_trader(price_poachers_bertrand1, a_f, a_w, b_f, b_w, e, c),
+  store = store %>% mutate(harvest_bertrand1        = q_bertrand(ss_bertrand1,v,c, a_f, a_w, b_f, b_w, e,W),
+                           price_poachers_bertrand1 = s_b_own(ss_bertrand1, a_f, a_w, b_f, b_w, e, W, c, v),
+                           farmed_bertrand1         = quantity_farmed(price_poachers_bertrand1, a_f, a_w, b_f, b_w, e, W, c, v),
+                           p_farmed_bertrand1       = price_farmed(price_poachers_bertrand1, a_f, a_w, b_f, b_w, e, c, v),
+                           p_wild_bertrand1         = price_trader(price_poachers_bertrand1, a_f, a_w, b_f, b_w, e, c, v),
                            profit_farmed_bertrand1  = profit_farm(p_wild_bertrand1, p_farmed_bertrand1, a_f, b_f, e, v),
                            profit_trader_bertrand1  = profit_trader(p_wild_bertrand1, p_farmed_bertrand1, a_w, b_w, e, price_poachers_bertrand1, c),
                            # Second steady state:
-                           price_poachers_bertrand2 = s_b_own(ss_bertrand2, a_f, a_w, b_f, b_w, e, W, c),
-                           farmed_bertrand2         = quantity_farmed(price_poachers_bertrand2, a_f, a_w, b_f, b_w, e, W, c),
-                           p_farmed_bertrand2       = price_farmed(price_poachers_bertrand2, a_f, a_w, b_f, b_w, e, c),
-                           p_wild_bertrand2         = price_trader(price_poachers_bertrand2, a_f, a_w, b_f, b_w, e, c),
+                           harvest_bertrand2        = q_bertrand(ss_bertrand2,v,c, a_f, a_w, b_f, b_w, e,W),
+                           price_poachers_bertrand2 = s_b_own(ss_bertrand2, a_f, a_w, b_f, b_w, e, W, c, v),
+                           farmed_bertrand2         = quantity_farmed(price_poachers_bertrand2, a_f, a_w, b_f, b_w, e, W, c, v),
+                           p_farmed_bertrand2       = price_farmed(price_poachers_bertrand2, a_f, a_w, b_f, b_w, e, c, v),
+                           p_wild_bertrand2         = price_trader(price_poachers_bertrand2, a_f, a_w, b_f, b_w, e, c, v),
                            profit_farmed_bertrand2  = profit_farm(p_wild_bertrand2, p_farmed_bertrand2, a_f, b_f, e, v),
                            profit_trader_bertrand2  = profit_trader(p_wild_bertrand2, p_farmed_bertrand2, a_w, b_w, e, price_poachers_bertrand2, c),
                            #Third steady state : 
-                           price_poachers_bertrand3 = s_b_own(ss_bertrand3, a_f, a_w, b_f, b_w, e, W, c),
-                           farmed_bertrand3         = quantity_farmed(price_poachers_bertrand3, a_f, a_w, b_f, b_w, e, W, c),
-                           p_farmed_bertrand3       = price_farmed(price_poachers_bertrand3, a_f, a_w, b_f, b_w, e, c),
-                           p_wild_bertrand3         = price_trader(price_poachers_bertrand3, a_f, a_w, b_f, b_w, e, c),
+                           harvest_bertrand3        = q_bertrand(ss_bertrand3,v,c, a_f, a_w, b_f, b_w, e,W),
+                           price_poachers_bertrand3 = s_b_own(ss_bertrand3, a_f, a_w, b_f, b_w, e, W, c, v),
+                           farmed_bertrand3         = quantity_farmed(price_poachers_bertrand3, a_f, a_w, b_f, b_w, e, W, c, v),
+                           p_farmed_bertrand3       = price_farmed(price_poachers_bertrand3, a_f, a_w, b_f, b_w, e, c, v),
+                           p_wild_bertrand3         = price_trader(price_poachers_bertrand3, a_f, a_w, b_f, b_w, e, c, v),
                            profit_farmed_bertrand3  = profit_farm(p_wild_bertrand3, p_farmed_bertrand3, a_f, b_f, e, v),
                            profit_trader_bertrand3  = profit_trader(p_wild_bertrand3, p_farmed_bertrand3, a_w, b_w, e, price_poachers_bertrand3, c))
   
@@ -585,6 +697,8 @@ if(run_==T){
   store = read.csv(here('data','sensitivity_steady_states_last.csv'))
 }
 
+to_assign = colnames(params_sensitivity)
+to_assign = to_assign[1:9]
 # Reassign variables properly
 for(variable in to_assign){
         assign(variable, 
@@ -611,42 +725,17 @@ head(a)
 
 I have an issue with the best way to plot data. I think using a long format is better to use the functionalities from `ggplot2`. I think there's still one more round of analysis to do : for each different value of `spec` and `transformation`, we need to find the value that maximizes the profit of the aquaculture firm. Then, I think it should be ok to use a long format to plot the data. 
 
-```{r}
 
-result1 <- as.data.frame(read.csv(here("data","result1.csv")) %>% select(x, growth) %>% rename(value=x))
-
-a = store %>% 
-  pivot_longer(cols = to_long, 
-               names_to = 'output',
-               values_to = 'value')
-a <- a %>% 
-  filter(spec=="c and v") %>% 
-  filter(str_detect(output, "ss_")) %>% 
-  select(value, output, spec, transformation) 
-a$value <- as.integer(a$value)
-
-
-merged <- full_join(result1, a)
-merged2 <- merged %>% drop_na()
-
-ggplot() +
-  geom_line(data=merged, aes(x = value, y = growth)) +
-  geom_point(data=merged2, aes(x = value, y = growth, color=transformation))
-
-#Maybe select the points and create plots showing the variability in steady states by a given parameter (x axis = spec; y axis = values)
-
-ggplot() +
-  geom_point(data=merged2, aes(x=transformation, y=value, color=spec))
-
-```
 
 # Sensitivity graphs
 
 ```{r}
 # Define grid of colours
-low = 'darkred'
+store = as.data.frame(read.csv(here("data","sensitivity_steady_states_last.csv")))
+
+low = 'red'
 mid = 'white'
-high = 'green'
+high = 'springgreen2'
 
 # Set data to long format
 to_keep = c('c', 'v', 'ss_monop1', 'ss_cournot1','ss_bertrand1')
@@ -697,15 +786,16 @@ p = df_cv %>%
   facet_grid(.~ output2)+
   theme_bw()+
   theme(legend.position = 'bottom')+
+  ylab('Unit cost of farming ($USD/ton)')+
+  xlab('Unit cost of transaction for traders ($USD/ton)')+
   guides(colour = guide_legend(title.position = "top"))
 
 p + 
   labs(fill = '% change compared to steady state monopoly')+
-  geom_point(data = init_eq, col = 'black')+
-  geom_point(data = new_c, col = 'grey')
+  geom_point(data = init_eq, col = 'black', shape=4)
+#  geom_point(data = new_c, col = 'grey')
 #  geom_point(data = new_v, col = 'blue')
 
-  
 ```
 
 ```{r}
@@ -746,11 +836,40 @@ df_cv %>%
 
 ## Idea for other analysis
 
-### 1. Need to check when things backfire i.e when we can have ss_bertrand1 < ss_monop1
-
+### What demand increase would be needed to offset the positive effects of competition?
 ```{r}
+checker = store %>%
+  subset(spec %in% c('alpha', 'baseline'))
 
+ss_baseline = checker %>% subset(spec == 'baseline') %>% select(ss_monop1) %>% pull()
+to_keep = c('alpha','ss_monop1', 'ss_monop3', 'ss_cournot1', 'ss_bertrand1', 'ss_bertrand1_norm', 'ss_cournot1_norm', 'transformation')
 
+checker = checker %>%
+  mutate(ss_cournot1_norm = (ss_cournot1/ss_baseline -1)*100, 
+         ss_bertrand1_norm = (ss_bertrand1/ss_baseline -1)*100)%>% 
+  select(all_of(to_keep))
+
+checker = checker%>%
+  pivot_longer(cols = !c('alpha', 'transformation'),
+               values_to = 'values', 
+               names_to = 'variables') %>%
+  subset(transformation >=1)
+
+checker %>% 
+  subset(variables %in% c('ss_cournot1_norm', 'ss_bertrand1_norm')) %>%
+  ggplot(aes(x=transformation))+
+  geom_point(aes(y = values, colour = variables ))
+```
+### How do results evolve with substitutability?
+```{r}
+checker = store %>%
+  subset(spec %in% c('baseline', 'gamma'))%>%
+  mutate(ss_cournot1_norm =(ss_cournot1/ss_baseline - 1)*100,
+         ss_bertrand1_norm = (ss_bertrand1/ss_baseline -1)*100)%>%
+  select(gamma, transformation, ss_cournot1_norm, ss_bertrand1_norm)%>%
+  arrange(transformation)
+
+kable(checker)
 ```
 
-### 2. Understand the evolution of the steady states with respect to the other variables
+
