@@ -5,63 +5,81 @@
 
 library(here)
 library(tidyverse)
+library(kableExtra)
+
+#devtools::install_github("james-thorson/FishLife")
+library(FishLife)
 
 ```
 
 ```{r growth parameters}
 
+# Totoaba macdonaldi is in FishLife database, so prediction for 'r' is informed by species-specific data.
+Predict = Plot_taxa(Search_species(Genus="Totoaba",Species="macdonaldi")$match_taxonomy, mfrow=c(2,2))
+knitr::kable(Predict[[1]]$Mean_pred, digits=3)
+Predict[[1]]$Mean_pred %>%
+  kbl() %>%
+  kable_styling()
+
 # Define the parameters for the biological resource
-r <- 0.039 #from Upsides database (may need to be updated)
-k <- 20226 #carrying capacity (biomass in t) (source: INAPESCA)
-sigma <- 0.0005526788 #catchability (source: INAPESCA via Andrew)
-
-#Transforming to weight
-avg_weight = 25.7 # Individual average weight (in kilograms)
-K = 20226 # Carrying capacity (in tonnes)
-K_ind = K*1000/avg_weight # Carrying capacity in individuals (unitless) 
-
-# II. Demand characteristics ########
-# Assume a linear inverse demand function p(q) = alpha - beta * q
-# Where q : totoaba buche (unitless) of mass m in grams
-#
-alpha = 2956477 #choke price (in USD per individual)
-beta = 333065 
+r <- 0.2012827 #from FishLife (above)
+k <- 20226 #carrying capacity (biomass in mt) (source: INAPESCA 2020) 
+sigma <- 0.0005526788 #catchability (source: INAPESCA 2020 via Andrew)
 
 ```
 
 
-```{r poaching parameters}
+```{r calculating cost of poaching}
 
-# Define the parameters for the poaching effort
-# Fixed parameters
-n <- 0.1
-theta <- 2 #cost parameter, assumed to be 2 (fixed)
+# W parameter, proportional increase in cost per unit (trip)
+w_par <- read.csv(here("data","w_par.csv")) # Cost data, from Buche Bros
 
-# Profit is : wage/fish * number of fish - W*Effort^2 ** Could be an issue here.
+#Step one, get all annual operating costs
+# Goal is to calculate cost per vessel trip (we have total fleet days per year which is number of vessels * fishing days per month)
+# First calculate total annual costs for the entire fleet
 
-# Estimated parameters, poaching
-P <- 624310.9 # exogenous market price per unit of output ($USD per tonne of totoaba biomass, assuming each totoaba is 25.7 kg and has a 500 g buche)
-s <-  3588.436 # price paid to poachers ($USD per tonne of totoaba biomass, assuming each totoaba is 25.7 kg and has a 500 g buche)
-W <- 34594.88 # poaching cost parameter, increases proportionally with effort (operational annual cost only, $USD per tonne of totoaba biomass)
+w_par_ops <- w_par %>% 
+  mutate(cost_crew_earnings = (totoaba_year * price_fishers_per_totoaba * monthly_earnings_paid)) %>% 
+  mutate(cost_food_fuel = (foodfuel_day * total_fleet_days_year)) %>% 
+  mutate(cost_gear = total_fleet_days_year*(gear_loss_day*gear_replacement)) %>% 
+  mutate(revenue_per_month = (totoaba_year*(price_fishers_per_totoaba)) - (cost_crew_earnings-cost_food_fuel-cost_gear))
 
-z <- 2 * W 
+# Next, divide by total fishing days per year
 
-# Traders
-c <- 1208.372 #cost of trading, all the costs associated with the transportation and final sale of wild animal products (assumed to be annual probability of gear or vessel confiscation, or arrest)
+w_par_val <- w_par_ops %>% 
+  select(vessels, totoaba_day, total_fleet_days_year,cost_crew_earnings,cost_food_fuel,cost_gear,bribes_year,revenue_per_month) %>% 
+  mutate(cost_per_trip = (cost_crew_earnings + cost_food_fuel + cost_gear + bribes_year)/total_fleet_days_year) 
 
-# Estimated parameters, farming
-v <- 8828.34 # farming cost parameter ($USD per tonne of totoaba biomass)
-lambda <- 0.75 #gamma
-  
-initial_x <- 1400 #t of totoaba in 2017
-initial_E <- 2.878333 # Catch-per-unit-effort, Totoaba (tonnes) per Vessel per Year (Median value is 0.4), considering the fishery is active for six months of the year
+#Adding in gear and vessel confiscation (calculated as a shared cost applied to the entire fleet)
+
+w_pal_val_conf <- w_par_val %>%
+  add_column(net_confs_cost_fleetday=664000/1920) %>% #Total cost as a proportion of reported confiscations averaged over the year (1,920 fishing trips total). 5,720 nets in the water each year (each vessel sets 2-3 nets), and 0.07 of those nets are confiscated (we know that there are 415 gear confiscation events each year). So if we assume that each net costs $1,600, then our total cost to the fleet is $664,000.
+  add_column(vessel_confs_cost_fleetday=1230000/1920) %>% #Total cost as a proportion of reported vessel seizures averaged over the year (1,920 fishing trips total). There are 150 boats in total each year, and 0.546 are confiscated (there are 82 confiscations a year). So we assume each boat is worth $15,000, and therefore the total cost to the fleet is $1,230,000.
+  add_column(fines_cost_fleetday=81675/1920) %>% #Total cost as a proportion of reported vessel seizures averaged over the year (1,920 fishing trips total). There are 11 arrests/convictions where people are fined $7,425/event, which would add an additional cost of $42.54.
+  mutate(cost_per_trip = (cost_crew_earnings + cost_food_fuel + cost_gear + bribes_year)/total_fleet_days_year) %>% 
+  mutate(cost_per_trip_wconf = cost_per_trip + net_confs_cost_fleetday + vessel_confs_cost_fleetday + fines_cost_fleetday)
+
+# Final estimates of cost per trip (W)
+W_low = 5051.262 #Low Season 
+W_mid = 8385.344 # Mid Season
+W_high = 14386.690 # High Season
 
 ```
 
-```{r dataframe}
 
-base_params <- data.frame (value=c(r, K, sigma, alpha, beta, n, theta, z, P, W, s, c, v, lambda, initial_x, initial_E),
-                           name=c("r", "K", "sigma", "alpha", "beta", "n", "theta", "z", "P", "W", "s", "c", "v", "lambda", "initial_x", "initial_E"))
-write_csv(parameters, here("data","base_params.csv"))
+```{r calculating cost of farming}
+
+# Farming cost data, from Buche Bros
+v_par <- read.csv(here("data","v_par.csv")) 
+
+# Final estimate per tonne of totoaba:
+v = 14896.55
+
+# Calculating size at harvest
+aqua_par_w <- read.csv(here("data","aqua_par_wild.csv"))
+aqua_par_f <- read.csv(here("data","aqua_par_farm.csv"))
+
+# At 4.5 years under farming conditions, a totoaba should have a 417 g swim bladder
+# At 5 years under farming conditions, a totoaba should have a 530 g swim bladder
 
 ```
