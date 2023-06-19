@@ -149,11 +149,16 @@ w_par_ops <- w_par %>%
 # Next, divide by total fishing days per year
 
 w_par_val <- w_par_ops %>% 
-  select(vessels, totoaba_day, total_fleet_days_year,cost_crew_earnings,cost_food_fuel,cost_gear,revenue_per_month) %>% 
-  mutate(cost_per_trip = (cost_crew_earnings + cost_food_fuel + cost_gear)/total_fleet_days_year) %>% 
-  mutate(cost_per_totoaba_per_trip = cost_per_trip/totoaba_day) %>% 
-  mutate(revenue_per_trip=revenue_per_month/total_fleet_days_year) %>% 
-  mutate(diff=revenue_per_trip-cost_per_trip)
+  select(vessels, totoaba_day, total_fleet_days_year,cost_crew_earnings,cost_food_fuel,cost_gear,bribes_year,revenue_per_month) %>% 
+  mutate(cost_per_trip = (cost_crew_earnings + cost_food_fuel + cost_gear + bribes_year)/total_fleet_days_year) 
+
+#Adding in gear and vessel confiscation
+
+w_pal_val_conf <- w_par_val %>%
+  add_column(net_confs_cost_fleetday=664000/1920) %>% #Total cost as a proportion of reported confiscations averaged over the year (1,920 fishing trips total)
+  add_column(vessel_confs_cost_fleetday=1230000/1920) %>% #Total cost as a proportion of reported vessel seizures averaged over the year (1,920 fishing trips total)
+  mutate(cost_per_trip = (cost_crew_earnings + cost_food_fuel + cost_gear + bribes_year)/total_fleet_days_year) %>% 
+  mutate(cost_per_trip_wconf = cost_per_trip + net_confs_cost_fleetday + vessel_confs_cost_fleetday)
 
 # Calculate mean values
 
