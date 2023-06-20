@@ -339,7 +339,7 @@ dat_w = read.csv(here("data", "w_par.csv"))
 max_E = sum(dat_w$total_fleet_days_year)
 
 r = 0.2012827
-k = 20226 # in metric tons of biomass from INAPESCA
+k = 20226 # in metric tons of biomass from INAPESCA, 2020
 k_ = k*1000 # in kilos
 
 catchability = dat_b %>% 

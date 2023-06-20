@@ -1,0 +1,44 @@
+---
+title: "0_Parameters"
+author: "Lawson et al"
+date: "2023-06-16"
+output: html_document
+---
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = F)
+options(scipen=999)
+
+library(tidyverse)
+library("ggsci")
+library(here)
+library(knitr)
+library(stargazer)
+```
+
+In this script, we share the code to replicate our parameters.
+# 0. File architecture
+
+This still needs to be amended once we have finished all of the architecture in the final repo. 
+
+```{r}
+if(dir.exists(paste0(getwd(),"/scripts/"))==F){
+  dir.create(here('/scripts/'))
+}
+if(dir.exists(paste0(getwd(),'/visuals/'))==F){
+  dir.create(here('/visuals/'))
+  dir.create(here('visuals', 'supplementary_visuals'))
+}
+```
+
+
+# I. Demand
+
+```{r, Demand}
+
+
+```
+
+
+# II. Ecological parameters
+
+
