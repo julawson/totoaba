@@ -106,6 +106,4 @@ ggplot() +
   ylab("Buche Mass (grams)") +
   geom_hline(yintercept=500, color="grey70", lty=2) #the average buche size reported by fishermen.
 
-# Conversion factor is 0.019 (average of 0.0161, 0.0300, and 0.0135)
-
 ```
