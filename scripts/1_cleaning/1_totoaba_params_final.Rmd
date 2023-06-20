@@ -83,3 +83,29 @@ aqua_par_f <- read.csv(here("data","aqua_par_farm.csv"))
 # At 5 years under farming conditions, a totoaba should have a 530 g swim bladder
 
 ```
+
+```{r conversion factor for buche}
+
+#  Length-weight/age relationships from INAPESCA (2020), wild stock.
+#  Weight in kg, length in cm.
+dat_lw = read_csv(here("data", "andrew", "dat_inpesca_bio.csv"))
+
+# Wet buche is 0.0161 of the total wet weight and up to 0.0300 in females (INAPESCA 2020) (wild-caught).
+# Wet buche is 0.0135 of the fish body wet weight (Gonzalez-Felix et al. 2021) (aquaculture raised).
+
+buche_ww <- dat_lw %>% 
+  mutate(buche_g_low = (weight*0.0135)*1000) %>% #low is the Gonzalez-Felix et al. 2021 aquaculture-raised number.
+  mutate(buche_g_av = (weight*0.0161)*1000) %>% #average reported by INAPESCA
+  mutate(buche_g_max = (weight*0.0300)*1000) #large females reported by INAPESCA
+
+ggplot() +
+  theme_bw() +
+  geom_ribbon(data = buche_ww, aes(x = years, ymin=buche_g_low, ymax=buche_g_max), fill = "grey70", alpha=0.5) +
+  geom_line(data = buche_ww, aes(x = years, y = buche_g_av)) +
+  xlab("Age of Totoaba") +
+  ylab("Buche Mass (grams)") +
+  geom_hline(yintercept=500, color="grey70", lty=2) #the average buche size reported by fishermen.
+
+# Conversion factor is 0.019 (average of 0.0161, 0.0300, and 0.0135)
+
+```
