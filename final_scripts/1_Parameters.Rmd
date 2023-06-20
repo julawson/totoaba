@@ -73,8 +73,10 @@ v_par = read.csv(here("data","v_par.csv"))
 # II. Demand
 
 ```{r, Demand}
+avg_toto_weight = 25.7
+avg_buche_weight = .5
 
-buche_to_toto = 0.019
+buche_to_toto = avg_buche_weight/avg_toto_weight
 
 # Merge observed price data with observed catch and biomass data from 2013 to 2017
 new_dat = merge(dat_b %>%
@@ -103,7 +105,7 @@ summary(model)
 
 # Coefficients
 alpha = model$coefficients[1]
-beta = model$coefficients[2]
+beta = -model$coefficients[2]
 gamma = 0.9*beta
 
 ```

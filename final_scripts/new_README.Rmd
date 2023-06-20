@@ -1,0 +1,23 @@
+---
+title: "README"
+author: "Lawson et al."
+date: "2023-06-20"
+output: html_document
+---
+
+# Welcome
+
+Welcome to the replication folder for *Conservation farming presents a low risk, high reward alternative after fifty years of failed regulatory interventions for totoaba (Totoaba macdonaldi)* by Julia M. Lawson, Simon Jean, Andrew Steinkruger; Miguel Castellanos-Rico; Garrett M. Goto; Miguel A. Cisneros-Mata; Erendira Aceves-Bueno; Matthew M. Warham; Adam M. Sachs; Steven D. Gaines. 
+
+You can use this repository to replicate our results, or alternatively, to run our model with your own parameters. 
+
+## Instructions for replication
+
+1. Fork this repository on your local machine
+2. Open `~/scripts` and :
+    + Run `1_Parameters.Rmd` to compute parameters from raw data
+    + Run `2_Model.Rmd` to replicate our baseline results. Alternatively, you can supply your own parameters by changing the name of the file for the `calibration` dataframe. 
+    + Run `3_Sensitivity.Rmd` to replicate our sensitivity analysis. 
+    + Run `4_Additional_Graphs.Rmd` to replicate illustrative graphs, or graphs presented in the Supplementary Materials.
+     
+     
