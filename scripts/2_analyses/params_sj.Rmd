@@ -346,7 +346,6 @@ catchability = dat_b %>%
   subset(y==2016) %>% 
   select(c)/(max_E *dat_b %>% subset(y==2016) %>% select(b))
 catchability = pull(catchability)
-
 params = append(params, c('r', 'k','sigma'))
 value = append(value, c(r, k, catchability))
 concept = append(concept, c('intrinsic growth rate', 'carrying capacity', 'catchability'))
@@ -468,7 +467,7 @@ units = append(units, c('USD','USD','USD', "USD"))
 ```
 Several points are worth noting : economic theory should favor the estimate of $W$ such that $MC(E^*)$ is equal for the linear and quadratic cost. This results in a sizeable difference, that can be fixed with a fixed cost parameter. In the end, this would yield the estimate of $W$ to be such that : 
 $$
-MC(E_{hist}) = 2WE_{hist} = \kappa \Rightarrow W = \frac{\kappa}{2E_{hist}}
+CT(E_{hist}) = WE^2 \Rightarrow MC(E_{hist}) = 2WE_{hist} = \kappa \Rightarrow W = \frac{\kappa}{2E_{hist}}
 $$
 The question remains open as to if or how we control for the final difference in costs to assess profitability in equilibrium. I guess this goes to show that the discussion on the computation of profits is still not settled. 
 
@@ -781,10 +780,10 @@ For example, can we think of ways that would curb the exploitation? For example,
 
 Goal here is to leverage this table to do (i) sensitivity analysis and (ii) to investigate policy scenarios
 
-```{r}
+```{r, calibration}
 calibration = data.frame(params, value, concept, units)
 
-kable(calibration, caption = 'Parameters used for calibration')
+knitr::kable(calibration, caption = 'Parameters used for calibration')
 
 write.csv(calibration, here('data','calibration_params.csv'))
 ```
@@ -949,8 +948,8 @@ tester %>%
   geom_line(aes(y = v, colour = 'v' ), linewidth = 1.1)+
   geom_line(aes(y = v_), linewidth = 1.1, linetype = 'dashed')+
   geom_line(aes(y = v_max), linewidth = 1.1, linetype = 'dashed', colour = 'red')+
-  geom_ribbon(data=subset(tester, x>=10000 & x <= 20000), 
-              aes(ymin=v_max,ymax=1.8*v), fill="red", alpha=0.5) +
+  #geom_ribbon(data=subset(tester, x>=10000 & x <= 20000), 
+  #            aes(ymin=v_max,ymax=1.8*v), fill="red", alpha=0.5) +
   geom_ribbon(data=subset(tester, x>=10000 & x <= 14750), 
               aes(ymin=v,ymax=v_func), fill="red", alpha=0.5) +
   geom_ribbon(data=subset(tester, x >= 14750 & x>=10000), 

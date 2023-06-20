@@ -289,7 +289,7 @@ kable(final_, row.names = F)
 ```{r, Graphic output}
 actual_steady = steady_states[!is.na(steady_states)]
 
-lines_ = T
+lines_ = F
 
 plot_ = result1 %>%
   subset(x < 1.5*max(actual_steady))%>%
@@ -303,6 +303,7 @@ plot_ = result1 %>%
   ylab('Growth / harvest')+
   xlab('Population stock')+
   scale_color_aaas()+
+  labs(colour = ' ')+
   theme(legend.position = 'bottom')
 
 if(lines_ == T){

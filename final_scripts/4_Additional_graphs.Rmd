@@ -1,6 +1,6 @@
 ---
 title: "Additional graphs and analysis"
-author: "Lawson et al"
+author: "Lawson et al."
 date: "2023-06-19"
 output: html_document
 ---
